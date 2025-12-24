@@ -1,0 +1,3382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attribute Idle: Elemental Expansion (Updated)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome (General UI) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Iconify (Access to Game-Icons.net and more) -->
+    <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.7/dist/iconify-icon.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background-color: #1a1b26;
+            color: #a9b1d6;
+            user-select: none;
+        }
+
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #16161e; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #565f89; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #7aa2f7; }
+        .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #565f89 #16161e; }
+
+        /* Animations */
+        .skill-node { transition: all 0.2s; }
+        .skill-node:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .skill-node.locked { filter: grayscale(100%); opacity: 0.6; cursor: not-allowed; }
+        .skill-node.purchased { border-color: #9ece6a; background-color: rgba(158, 206, 106, 0.1); }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-40px) scale(1.2); opacity: 0; }
+        }
+        .damage-text {
+            position: absolute;
+            animation: floatUp 0.8s ease-out forwards;
+            pointer-events: none;
+            font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
+            z-index: 50;
+            white-space: nowrap;
+            will-change: transform, opacity;
+        }
+
+        .shake { animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+        
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+        }
+        .btn-ready { animation: pulse-red 2s infinite; }
+
+        @keyframes pulse-green-ring {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        
+        .map-marker { transition: transform 0.2s; }
+        .map-marker:hover { transform: scale(1.2) translateY(-5px); z-index: 50; }
+        .map-marker.active-zone .marker-pin { background-color: #22c55e; animation: pulse-green-ring 2s infinite; }
+        .map-marker.locked-zone { filter: grayscale(100%); opacity: 0.7; cursor: not-allowed; }
+        .map-marker.locked-zone:hover { transform: none; }
+
+        .progress-fill { transition: width 0.2s ease-in-out; will-change: width; }
+        
+        .attribute-card:hover { transform: translateX(4px); background-color: #2e303e; }
+        
+        .skill-card-ready { border-color: #6b7280; cursor: pointer; }
+        .skill-card-ready:hover { border-color: #ffffff; background-color: #374151; }
+        .skill-card-cooldown { border-color: #374151; cursor: not-allowed; opacity: 0.8; }
+
+        @keyframes boss-pulse {
+            0% { box-shadow: 0 0 10px rgba(220, 38, 38, 0.5); border-color: #dc2626; }
+            50% { box-shadow: 0 0 25px rgba(220, 38, 38, 0.8); border-color: #f87171; }
+            100% { box-shadow: 0 0 10px rgba(220, 38, 38, 0.5); border-color: #dc2626; }
+        }
+        .boss-frame { animation: boss-pulse 2s infinite; border-width: 4px; }
+
+        .btn-autocast-on {
+            color: #22c55e; border-color: #22c55e; background-color: rgba(34, 197, 94, 0.1);
+            box-shadow: 0 0 5px rgba(34, 197, 94, 0.3);
+        }
+        .btn-autocast-off { color: #4b5563; border-color: #4b5563; background-color: transparent; }
+        .btn-autocast-off:hover { color: #9ca3af; border-color: #6b7280; }
+
+        .tactical-map-bg {
+            background-color: #0f172a;
+            background-image: 
+                linear-gradient(rgba(30, 41, 59, 0.5) 2px, transparent 2px),
+                linear-gradient(90deg, rgba(30, 41, 59, 0.5) 2px, transparent 2px);
+            background-size: 50px 50px;
+            box-shadow: inset 0 0 100px #000;
+        }
+        .map-continent {
+            position: absolute; inset: 0; opacity: 0.2;
+            background: radial-gradient(circle at 50% 50%, #1e293b 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .draggable-card { cursor: grab; }
+        .draggable-card.dragging { opacity: 0.5; cursor: grabbing; border-color: #60a5fa; transform: scale(0.95); }
+        .drag-over { border-top: 2px solid #60a5fa !important; }
+        
+        .ng-plus-glow { box-shadow: 0 0 50px rgba(168, 85, 247, 0.3); }
+
+        /* Gimmick Badge */
+        .gimmick-badge {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Elemental Badges */
+        .element-badge {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-left: 6px;
+            display: inline-block;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .elem-fire { background: rgba(220, 38, 38, 0.2); color: #fca5a5; border-color: #dc2626; }
+        .elem-water { background: rgba(8, 145, 178, 0.2); color: #67e8f9; border-color: #0891b2; }
+        .elem-earth { background: rgba(120, 53, 15, 0.2); color: #fdba74; border-color: #78350f; }
+        .elem-air { background: rgba(71, 85, 105, 0.2); color: #e2e8f0; border-color: #475569; }
+        .elem-holy { background: rgba(234, 179, 8, 0.2); color: #fef08a; border-color: #eab308; }
+        .elem-darkness { background: rgba(88, 28, 135, 0.2); color: #d8b4fe; border-color: #581c87; }
+        .elem-physical { background: rgba(75, 85, 99, 0.2); color: #9ca3af; border-color: #4b5563; }
+        .elem-ice { background: rgba(147, 197, 253, 0.2); color: #93c5fd; border-color: #3b82f6; }
+        .elem-plant { background: rgba(22, 163, 74, 0.2); color: #4ade80; border-color: #16a34a; }
+        .elem-lightning { background: rgba(234, 179, 8, 0.2); color: #facc15; border-color: #ca8a04; }
+        
+        .reaction-text {
+            font-weight: 900 !important;
+            font-size: 24px !important;
+            z-index: 100 !important;
+            -webkit-text-stroke: 1px black;
+        }
+
+        /* Buff Icons */
+        .buff-icon {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="h-screen overflow-hidden flex flex-col text-sm md:text-base">
+
+    <!-- Header -->
+    <header class="bg-gray-900 border-b border-gray-700 p-3 md:p-4 flex justify-between items-center shrink-0 z-10 shadow-md">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-dungeon text-purple-400 text-2xl"></i>
+            <div>
+                <h1 class="text-lg md:text-xl font-bold text-white tracking-wider">AFRODRAGON'S ELEMENTAL GROWTH</h1>
+                <p class="text-xs text-gray-500">v1 (Release) <span id="ng-indicator" class="text-purple-400 font-bold ml-2">Cycle 0</span></p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="openArtifactModal()" class="px-4 py-1 bg-amber-700 hover:bg-amber-600 text-white rounded text-xs transition border border-amber-500 flex items-center gap-2 mr-2">
+                <i class="fa-solid fa-trophy"></i> Artifacts
+            </button>
+            <button onclick="openOptionsModal()" class="px-4 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs transition border border-gray-500 flex items-center gap-2">
+                <i class="fa-solid fa-gear"></i> Options
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Game Area -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Col: Attributes & Stats -->
+        <aside class="w-1/4 min-w-[300px] bg-gray-900 border-r border-gray-700 flex flex-col overflow-y-auto p-4 custom-scrollbar">
+            <div class="mb-4">
+                <h2 class="text-base font-bold text-white mb-2 border-b border-gray-700 pb-2 uppercase tracking-wide">Attributes</h2>
+                <p class="text-[10px] text-gray-500 mb-2">Click an attribute to open Skill Tree</p>
+                <div id="attribute-list" class="space-y-3">
+                    <!-- Attributes generated by JS -->
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <h2 class="text-base font-bold text-white mb-4 border-b border-gray-700 pb-2 uppercase tracking-wide">Player Stats</h2>
+                <div id="stat-sheet" class="text-xs md:text-sm space-y-2 text-gray-300 font-mono">
+                    <!-- Stats generated by JS -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Middle Col: Combat -->
+        <section class="flex-1 flex flex-col bg-gray-800 relative z-0">
+            <!-- Zone Selector -->
+            <div class="p-3 bg-gray-900 border-b border-gray-700 flex justify-between items-center shadow-md shrink-0 z-20 relative">
+                <div class="flex items-center gap-4 w-full justify-center relative">
+                    <div class="text-center">
+                        <div class="text-xs text-gray-500 uppercase tracking-widest mb-1">Current Zone</div>
+                        <h3 id="zone-name" class="font-bold text-white text-xl">Dark Forest</h3>
+                        <div class="flex flex-col items-center">
+                            <p id="zone-desc" class="text-xs text-gray-400">Bats & Wolves</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-[10px] uppercase font-bold text-gray-500">Boss Progress</span>
+                                <div class="w-20 h-2 bg-gray-800 rounded-full border border-gray-700 overflow-hidden">
+                                    <div id="zone-progress-bar" class="h-full bg-yellow-600 w-0 transition-all"></div>
+                                </div>
+                                <span id="zone-progress-text" class="text-[10px] text-yellow-500 font-bold">0/10</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="openMapModal()" class="absolute right-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-purple-700 hover:bg-purple-600 text-white rounded border border-purple-500 shadow-lg text-sm font-bold flex items-center gap-2 transition-all hover:scale-105">
+                        <i class="fa-solid fa-map"></i> Travel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Battle Area -->
+            <div class="flex-1 flex flex-col items-center pt-4 p-4 md:p-8 relative overflow-y-auto custom-scrollbar bg-gray-800/50" id="battle-area">
+                
+                <div class="absolute inset-0 opacity-5" style="background-image: radial-gradient(#4b5563 1px, transparent 1px); background-size: 20px 20px;"></div>
+                <div id="damage-container" class="absolute inset-0 pointer-events-none z-50"></div>
+
+                <!-- Enemy Display -->
+                <div class="flex flex-col items-center w-full max-w-md relative z-10">
+                    
+                    <!-- Boss Gimmick Banner -->
+                    <div id="boss-gimmick-container" class="w-full mb-2 hidden">
+                        <div class="bg-red-900/40 border border-red-500/50 rounded p-2 text-center gimmick-badge">
+                            <div class="text-xs text-red-300 font-bold uppercase tracking-widest">⚠️ Boss Ability Detected</div>
+                            <div id="gimmick-name" class="text-red-100 font-bold text-sm"></div>
+                            <div id="gimmick-desc" class="text-gray-400 text-xs italic"></div>
+                        </div>
+                    </div>
+
+                    <div class="w-full flex justify-between text-xs text-gray-400 mb-1 font-bold items-center">
+                        <div>
+                            <span id="enemy-name" class="text-red-300">Loading...</span>
+                            <span id="enemy-element-badge"></span>
+                        </div>
+                        <span class="text-white">Lvl <span id="enemy-level">1</span></span>
+                    </div>
+                    
+                    <div id="enemy-hp-container" class="w-full h-8 bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-700 relative mb-6 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                        <div id="enemy-hp-bar" class="h-full bg-gradient-to-r from-red-800 to-red-500 w-full transition-all duration-100"></div>
+                        <span id="enemy-hp-text" class="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow-md tracking-wider">?/?</span>
+                    </div>
+                    
+                    <div id="enemy-container" class="relative group">
+                        <div id="boss-badge" class="hidden absolute -top-4 left-1/2 -translate-x-1/2 bg-red-700 text-white text-xs font-bold px-2 py-0.5 rounded shadow z-20 border border-red-500 tracking-widest">BOSS</div>
+                        <div id="enemy-sprite" class="w-32 h-32 md:w-40 md:h-40 bg-gray-800 rounded-xl flex items-center justify-center text-6xl text-gray-400 border-4 border-gray-700 shadow-2xl mb-8 relative transition-transform duration-100">
+                            <i class="fa-solid fa-question"></i>
+                        </div>
+                        <div id="enemy-status" class="absolute -right-12 top-0 flex flex-col gap-1 text-2xl"></div>
+                    </div>
+
+                    <!-- Buff Bar -->
+                    <div id="buff-container" class="w-full flex gap-2 justify-center min-h-[32px] mb-2 flex-wrap">
+                        <!-- Buffs inserted here -->
+                    </div>
+
+                    <div class="w-full flex justify-between text-xs text-gray-400 mb-1 font-bold">
+                        <span class="text-green-300">Hero</span>
+                        <span>HP</span>
+                    </div>
+                    <div class="w-full h-8 bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-700 relative mb-4 shadow-md">
+                        <div id="player-hp-bar" class="h-full bg-gradient-to-r from-green-800 to-green-500 w-full transition-all duration-100"></div>
+                        <span id="player-hp-text" class="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow-md tracking-wider">?/?</span>
+                    </div>
+
+                    <button id="main-attack-btn" onclick="clickAttack()" class="w-full py-4 bg-red-700 hover:bg-red-600 text-white font-bold rounded-lg border-b-4 border-red-900 active:border-b-0 active:translate-y-1 transition-all mb-1 text-xl shadow-lg relative overflow-hidden group">
+                        <span class="relative z-10 flex items-center justify-center gap-2"><i class="fa-solid fa-sword"></i> ATTACK</span>
+                        <div id="btn-cooldown-overlay" class="absolute inset-0 bg-black bg-opacity-60 z-0 origin-left transition-transform duration-100" style="transform: scaleX(0)"></div>
+                    </button>
+                    
+                    <div class="h-1 w-full bg-gray-900 rounded-full mb-6 overflow-hidden relative opacity-50">
+                         <div id="attack-timer-bar" class="h-full bg-yellow-500 w-full transition-none"></div>
+                    </div>
+                    
+                    <div class="h-10"></div>
+                </div>
+            </div>
+
+            <div class="h-40 bg-gray-950 border-t border-gray-700 p-3 font-mono text-xs overflow-y-auto shrink-0 custom-scrollbar" id="combat-log">
+                <div class="text-green-500 border-b border-gray-800 pb-1 mb-1">System initialized. Optimization Loaded.</div>
+            </div>
+        </section>
+
+        <!-- Right Col: Active Skills List -->
+        <aside class="w-1/3 min-w-[300px] bg-gray-900 border-l border-gray-700 flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-gray-700 bg-gray-800 shadow-md z-10 flex justify-between items-center">
+                <div>
+                    <h2 class="text-base font-bold text-white uppercase tracking-wide">Active Skills</h2>
+                    <p class="text-xs text-gray-400 mt-1">Drag to reorder. <span id="autocast-hint" class="hidden">Toggle dots to Autocast.</span></p>
+                </div>
+                <div id="autocast-status" class="hidden text-xs font-mono text-cyan-400 border border-cyan-900 bg-cyan-900/20 px-2 py-1 rounded">
+                    Auto: 0/0
+                </div>
+            </div>
+            
+            <div id="active-skills-list" class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                <!-- Active Skill Cards generated by JS -->
+                <div id="no-skills-msg" class="text-center text-gray-500 italic mt-10 text-xs hidden">No active skills unlocked.<br>Click attributes on the left to learn skills.</div>
+            </div>
+        </aside>
+
+    </main>
+
+    <!-- Options Modal -->
+    <div id="options-modal" onclick="if(event.target === this) closeOptionsModal()" class="hidden fixed inset-0 bg-black bg-opacity-80 z-[150] flex items-center justify-center transition-opacity duration-300 opacity-0">
+        <div id="options-modal-content" class="bg-gray-900 border border-gray-700 w-full max-w-4xl flex flex-col rounded-lg shadow-2xl relative overflow-hidden transform transition-all duration-300 scale-95 opacity-0 p-6">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
+                <h2 class="text-xl font-bold text-white tracking-wider flex items-center gap-2"><i class="fa-solid fa-gear text-gray-400"></i> OPTIONS</h2>
+                <button onclick="closeOptionsModal()" class="text-gray-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="flex flex-col md:flex-row gap-6">
+                <!-- Left Column: Buttons -->
+                <div class="flex-1 flex flex-col gap-3">
+                    <button onclick="togglePause()" id="pause-btn" class="w-full py-3 bg-yellow-700 hover:bg-yellow-600 text-white rounded font-bold transition border border-yellow-500 flex items-center justify-center gap-2"><i class="fa-solid fa-pause"></i> Pause Game</button>
+                    <button onclick="saveGame()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition border border-blue-400 flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> Save Game</button>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="exportSave()" class="flex-1 py-2 bg-teal-700 hover:bg-teal-600 text-white rounded font-bold transition border border-teal-500 flex items-center justify-center gap-2"><i class="fa-solid fa-file-export"></i> Export</button>
+                        <button onclick="importSave()" class="flex-1 py-2 bg-orange-700 hover:bg-orange-600 text-white rounded font-bold transition border border-orange-500 flex items-center justify-center gap-2"><i class="fa-solid fa-file-import"></i> Import</button>
+                    </div>
+                    
+                    <!-- Hidden file input -->
+                    <input type="file" id="import-file" class="hidden" accept=".json" onchange="handleFileSelect(event)">
+                    
+                    <div class="h-px bg-gray-700 my-2"></div>
+                    
+                    <button onclick="prestige()" class="w-full py-3 bg-purple-800 hover:bg-purple-700 text-white rounded font-bold transition border border-purple-600 flex items-center justify-center gap-2 shadow-lg"><i class="fa-solid fa-crown"></i> Prestige</button>
+                    
+                    <button onclick="hardReset()" class="w-full py-3 bg-red-900 hover:bg-red-700 text-white rounded font-bold transition border border-red-700 flex items-center justify-center gap-2 mt-2"><i class="fa-solid fa-bomb"></i> Hard Reset</button>
+                </div>
+
+                <!-- Right Column: Type Chart -->
+                <div class="flex-1 bg-gray-800 rounded p-4 border border-gray-700 flex flex-col">
+                    <h3 class="text-white font-bold mb-3 border-b border-gray-700 pb-1 text-center uppercase tracking-wide">Type Effectiveness</h3>
+                    <div id="type-chart-container" class="overflow-y-auto custom-scrollbar flex-1 max-h-[400px]">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Skill Tree Modal -->
+    <div id="skill-modal" onclick="if(event.target === this) closeSkillModal()" class="hidden fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center transition-opacity duration-300 opacity-0">
+        <div id="skill-modal-content" class="bg-gray-900 border border-gray-700 w-11/12 max-w-4xl h-5/6 flex flex-col rounded-lg shadow-2xl relative overflow-hidden transform transition-all duration-300 scale-95 opacity-0">
+            
+            <div class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shrink-0">
+                <div>
+                    <h2 class="text-xl font-bold text-white">Skill Mastery</h2>
+                    <p class="text-xs text-gray-400">Spend Skill Points (SP) to grow. Actives scale with Levels.</p>
+                </div>
+                <button onclick="closeSkillModal()" class="text-gray-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-700">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div id="modal-tabs" class="flex overflow-x-auto bg-gray-900 border-b border-gray-700 shrink-0 scrollbar-hide custom-scrollbar"></div>
+
+            <div id="modal-tree-view" class="flex-1 overflow-y-auto p-6 bg-gray-900 custom-scrollbar relative"></div>
+
+            <div class="p-4 bg-gray-800 border-t border-gray-700 flex justify-between items-center shrink-0">
+                <span id="modal-sp-display" class="font-bold text-white text-lg">SP: 0</span>
+                <button onclick="respecTree()" class="px-4 py-2 bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-800 rounded transition text-sm">
+                    <i class="fa-solid fa-rotate-left mr-2"></i>Respec Tree
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Map Modal -->
+    <div id="map-modal" onclick="if(event.target === this) closeMapModal()" class="hidden fixed inset-0 bg-black bg-opacity-90 z-[100] flex items-center justify-center transition-opacity duration-300 opacity-0">
+        <div id="map-modal-content" class="bg-gray-900 border-2 border-gray-700 w-full max-w-5xl h-[80vh] flex flex-col rounded-xl shadow-2xl relative overflow-hidden transform transition-all duration-300 scale-95 opacity-0">
+            
+            <div class="p-4 bg-gray-900 border-b border-gray-800 flex justify-between items-center shrink-0 z-10 shadow-md">
+                <h2 class="text-2xl font-bold text-white tracking-widest uppercase"><i class="fa-solid fa-globe-americas text-blue-500 mr-2"></i> World Map</h2>
+                <button onclick="closeMapModal()" class="text-gray-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800">
+                    <i class="fa-solid fa-times text-2xl"></i>
+                </button>
+            </div>
+
+            <!-- CSS Generated Map -->
+            <div class="flex-1 relative overflow-hidden flex items-center justify-center tactical-map-bg">
+                <div class="map-continent"></div>
+                <!-- Map Container -->
+                <div class="relative w-full h-full max-w-[1024px] max-h-[768px]">
+                    <!-- Markers Container -->
+                    <div id="map-markers" class="absolute inset-0">
+                        <!-- JS injects markers here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-3 bg-gray-900 border-t border-gray-800 text-center text-gray-500 text-xs shrink-0">
+                Defeat 10 monsters in a zone to summon the Boss. Defeat the Boss to unlock the next Zone.
+            </div>
+        </div>
+    </div>
+
+    <!-- NG+ Modal -->
+    <div id="ng-modal" class="hidden fixed inset-0 bg-black bg-opacity-95 z-[200] flex items-center justify-center transition-opacity duration-500 opacity-0">
+        <div class="bg-gray-900 border-2 border-purple-500 w-full max-w-lg p-8 rounded-xl ng-plus-glow text-center transform scale-95 transition-transform duration-500" id="ng-content">
+            <h2 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-4 uppercase tracking-widest">Reality Collapse</h2>
+            <p class="text-gray-300 mb-6 text-lg">You have conquered this dimension. The Void God has fallen.</p>
+            <div class="bg-gray-800 p-4 rounded mb-6 border border-gray-700">
+                <p class="text-yellow-400 font-bold mb-2 text-sm uppercase">Next Cycle Effects</p>
+                <ul class="text-left text-xs text-gray-300 space-y-2 list-disc pl-4">
+                    <li>Reset Zone Progress to Zone 1</li>
+                    <li><span class="text-red-400">Enemy HP:</span> Greatly Increased (Exponential)</li>
+                    <li><span class="text-red-400">Enemy DMG:</span> Increased</li>
+                    <li><span class="text-green-400">XP Gain:</span> Increased Scaling</li>
+                    <li><span class="text-blue-400">Retain:</span> All Attributes, Skills & Stats</li>
+                </ul>
+            </div>
+            
+            <div class="flex justify-center gap-4">
+                <button onclick="startNewGamePlus()" class="px-8 py-3 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded shadow-lg border border-purple-400 transition hover:scale-105">ASCEND (NG+)</button>
+                <button onclick="closeNgModal()" class="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold rounded border border-gray-600 transition">Stay Here</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="artifact-modal" onclick="if(event.target === this) closeArtifactModal()" class="hidden fixed inset-0 bg-black bg-opacity-90 z-[160] flex items-center justify-center transition-opacity duration-300 opacity-0">
+        <div id="artifact-modal-content" class="bg-gray-900 border-2 border-amber-600 w-full max-w-4xl h-[80vh] flex flex-col rounded-xl shadow-2xl relative overflow-hidden transform transition-all duration-300 scale-95 opacity-0">
+        
+            <div class="p-4 bg-gray-900 border-b border-gray-800 flex justify-between items-center shrink-0 shadow-md">
+                <div>
+                    <h2 class="text-2xl font-bold text-amber-500 tracking-widest uppercase"><i class="fa-solid fa-trophy mr-2"></i> Monster Artifacts</h2>
+                    <p class="text-xs text-gray-400">Collect rare drops to gain +25% Damage vs that monster. (Persists through Prestige)</p>
+                </div>
+                <button onclick="closeArtifactModal()" class="text-gray-400 hover:text-white transition w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-800">
+                    <i class="fa-solid fa-times text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-6 bg-gray-900 custom-scrollbar">
+                <div id="artifact-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    </div>
+            </div>
+        
+            <div class="p-3 bg-gray-900 border-t border-gray-800 text-center text-xs text-gray-500">
+                Base Drop Rate: 1/1000 &bull; <span class="text-green-400">Kill with Weakness Element: 1/200</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION & DATA ---
+
+        const ATTRIBUTES = {
+            strength: { name: "Strength", icon: "fa-fist-raised", color: "text-red-500", barColor: "bg-red-600" },
+            endurance: { name: "Endurance", icon: "fa-shield-halved", color: "text-green-500", barColor: "bg-green-600" },
+            dexterity: { name: "Dexterity", icon: "fa-wind", color: "text-yellow-400", barColor: "bg-yellow-500" },
+            intelligence: { name: "Intelligence", icon: "fa-brain", color: "text-blue-400", barColor: "bg-blue-500" },
+            darkness: { name: "Darkness", icon: "fa-skull", color: "text-purple-500", barColor: "bg-purple-600" },
+            fire: { name: "Fire", icon: "fa-fire", color: "text-orange-500", barColor: "bg-orange-600" },
+            earth: { name: "Earth", icon: "fa-mountain", color: "text-amber-700", barColor: "bg-amber-800" },
+            water: { name: "Water", icon: "fa-droplet", color: "text-cyan-400", barColor: "bg-cyan-500" },
+            air: { name: "Air", icon: "fa-feather", color: "text-slate-300", barColor: "bg-slate-400" },
+            holy: { name: "Holy", icon: "fa-sun", color: "text-yellow-200", barColor: "bg-yellow-300" },
+            ice: { name: "Ice", icon: "fa-snowflake", color: "text-blue-300", barColor: "bg-blue-300" },
+            plant: { name: "Plant", icon: "fa-leaf", color: "text-green-400", barColor: "bg-green-400" },
+            lightning: { name: "Lightning", icon: "fa-bolt", color: "text-yellow-400", barColor: "bg-yellow-400" }
+        };
+
+        const ELEMENTAL_CHART = {
+            'water': { weak: 'lightning', strong: ['fire', 'earth'] },
+            'fire': { weak: 'air', strong: ['plant', 'ice'] },
+            'ice': { weak: 'water', strong: ['earth', 'lightning'] },
+            'plant': { weak: 'fire', strong: ['water', 'air'] },
+            'earth': { weak: 'plant', strong: ['lightning', 'ice'] },
+            'lightning': { weak: 'earth', strong: ['air', 'water']  },
+            'air': { weak: 'ice', strong: ['fire', 'plant'] },
+            'holy': { strong: 'darkness', weak: 'darkness' },
+            'darkness': { strong: 'holy', weak: 'holy' },
+            'physical': { strong: null, weak: null }
+        };
+
+        const BUFF_ICONS = {
+            'warCry': { icon: 'fa-bullhorn', color: 'bg-red-800 border-red-500' },
+            'defensiveStance': { icon: 'fa-shield-halved', color: 'bg-green-800 border-green-500' },
+            'immortality': { icon: 'fa-infinity', color: 'bg-yellow-600 border-yellow-300' },
+            'doubleStrike': { icon: 'fa-xmarks-lines', color: 'bg-orange-800 border-orange-500' },
+            'galeBuff': { icon: 'fa-wind', color: 'bg-slate-700 border-slate-400' },
+            'blessing': { icon: 'fa-hands-praying', color: 'bg-yellow-800 border-yellow-500' },
+            'curse': { icon: 'fa-skull', color: 'bg-purple-900 border-purple-500' },
+            'confusion': { icon: 'fa-face-dizzy', color: 'bg-pink-900 border-pink-500' },
+            'webSlow': { icon: 'fa-spider', color: 'bg-gray-700 border-gray-500' },
+            'enemyWet': { icon: 'fa-droplet', color: 'bg-blue-900 border-blue-500' }
+        };
+
+        const ZONES = [
+            {
+                id: 0,
+                name: "Rat Cellar",
+                desc: "Filthy but dim.",
+                x: 51, y: 60,
+                monsters: [
+                    { name: "Giant Rat", level: 2, hp: 30, dmg: 4, xp: { strength: 12, dexterity: 8 }, icon: "game-icons:rat", color: "text-gray-400", element: 'physical' },
+                    { name: "Slime", level: 3, hp: 55, dmg: 4, xp: { water: 14, endurance: 8, plant: 8 }, icon: "game-icons:slime", color: "text-lime-400", element: 'water' },
+                    { name: "Cellar Beetle", level: 2, hp: 45, dmg: 3, xp: { darkness: 12, dexterity: 8 }, icon: "game-icons:scarab-beetle", color: "text-gray-600", element: 'darkness' },
+                    { name: "Blot Fly", level: 3, hp: 40, dmg: 5, xp: { air: 14, dexterity: 8, darkness: 8 }, icon: "game-icons:fly", color: "text-purple-300", element: 'air' }
+                ],
+                boss: { 
+                    name: "Sporeweb Spider", level: 5, hp: 300, dmg: 10, xp: { plant: 100, strength: 100, dexterity: 100, endurance: 50, darkness: 50 }, icon: "game-icons:spider-alt", color: "text-green-800", element: 'plant',
+                    gimmick: { id: "web_spray", name: "Web Spray", desc: "30% Chance to slow your Attack Speed by 50%" }
+                }
+            },
+            {
+                id: 1,
+                name: "Dark Forest",
+                desc: "Shadows lurk here.",
+                x: 25.5, y: 43,
+                monsters: [
+                    { name: "Dire Wolf", level: 5, hp: 90, dmg: 8, xp: { strength: 25, dexterity: 25 }, icon: "game-icons:wolf-head", color: "text-gray-500", element: 'physical' },
+                    { name: "Vampire Bat", level: 7, hp: 70, dmg: 10, xp: { dexterity: 30, darkness: 30, air: 10 }, icon: "game-icons:swamp-bat", color: "text-purple-400", element: 'darkness' },
+                    { name: "Forest Bear", level: 8, hp: 140, dmg: 12, xp: { earth: 30, strength: 30, plant: 20 }, icon: "game-icons:bear-face", color: "text-amber-900", element: 'earth' },
+                    { name: "Treant", level: 7, hp: 200, dmg: 5, xp: { plant: 40, endurance: 30 }, icon: "game-icons:evil-tree", color: "text-green-800", element: 'plant' }
+                ],
+                boss: { 
+                    name: "Werewolf", level: 10, hp: 600, dmg: 25, xp: { strength: 150, dexterity: 150, darkness: 200, endurance: 100 }, icon: "game-icons:werewolf", color: "text-purple-900", element: 'physical',
+                    gimmick: { id: "blood_thirst", name: "Bloodthirst", desc: "Heals for 100% of damage dealt" }
+                }
+            },
+            {
+                id: 2,
+                name: "Misty Marsh",
+                desc: "Thick fog and poisonous waters.",
+                x: 49, y: 78,
+                monsters: [
+                    { name: "Mud Crab", level: 10, hp: 180, dmg: 15, xp: { water: 50, endurance: 50 }, icon: "game-icons:crab", color: "text-orange-700", element: 'water' },
+                    { name: "Giant Toad", level: 12, hp: 220, dmg: 18, xp: { water: 40, earth: 40, strength: 40 }, icon: "game-icons:frog", color: "text-green-700", element: 'earth' },
+                    { name: "Swamp Witch", level: 14, hp: 200, dmg: 25, xp: { darkness: 55, intelligence: 55, plant: 30 }, icon: "game-icons:witch-face", color: "text-purple-700", element: 'darkness' },
+                    { name: "Poison Ivy", level: 13, hp: 190, dmg: 22, xp: { plant: 70, endurance: 30, earth: 30 }, icon: "game-icons:vine-flower", color: "text-green-600", element: 'plant' }
+                ],
+                boss: { 
+                    name: "Hydra", level: 18, hp: 1500, dmg: 50, xp: { water: 300, endurance: 300, earth: 200, intelligence: 100, plant: 100 }, icon: "game-icons:hydra", color: "text-green-900", element: 'water',
+                    gimmick: { id: "triple_threat", name: "Triple Threat", desc: "Hits 3 times rapidly for 40% DMG each" }
+                }
+            },
+            {
+                id: 3,
+                name: "Molten Core",
+                desc: "Intense heat.",
+                x: 77, y: 49,
+                monsters: [
+                    { name: "Magma Cube", level: 16, hp: 350, dmg: 35, xp: { endurance: 80, fire: 80 }, icon: "game-icons:ice-cube", color: "text-orange-500", element: 'fire' },
+                    { name: "Lava Golem", level: 20, hp: 550, dmg: 45, xp: { earth: 100, endurance: 50, fire: 50 }, icon: "game-icons:rock-golem", color: "text-red-600", element: 'earth' },
+                    { name: "Fire Spirit", level: 18, hp: 300, dmg: 55, xp: { fire: 70, intelligence: 70, air: 40 }, icon: "game-icons:ifrit", color: "text-yellow-500", element: 'fire' },
+                    { name: "Ash Sprite", level: 17, hp: 280, dmg: 45, xp: { fire: 70, air: 70, dexterity: 30 }, icon: "game-icons:fairy", color: "text-gray-500", element: 'air' }
+                ],
+                boss: { 
+                    name: "Fire Dragon", level: 25, hp: 3500, dmg: 100, xp: { fire: 500, endurance: 300, air: 300, strength: 200 }, icon: "fa-dragon", color: "text-orange-600", element: 'fire',
+                    gimmick: { id: "magma_aura", name: "Inferno Aura", desc: "Burn damage every second" }
+                }
+            },
+            {
+                id: 4,
+                name: "Crystal Cavern",
+                desc: "Echoes of the earth.",
+                x: 70.5, y: 24,
+                monsters: [
+                    { name: "Rock Elemental", level: 22, hp: 1200, dmg: 70, xp: { earth: 110, endurance: 110 }, icon: "game-icons:stone-pile", color: "text-amber-700", element: 'earth' },
+                    { name: "Conductor Spider", level: 24, hp: 900, dmg: 80, xp: { dexterity: 90, intelligence: 90, lightning: 60 }, icon: "game-icons:spider-alt", color: "text-cyan-300", element: 'lightning' },
+                    { name: "Gem Golem", level: 26, hp: 1500, dmg: 75, xp: { earth: 80, strength: 80, holy: 100 }, icon: "game-icons:golem-head", color: "text-purple-400", element: 'holy' },
+                    { name: "Crystalline Flower", level: 24, hp: 800, dmg: 90, xp: { lightning: 80, holy: 80, plant: 80 }, icon: "game-icons:rose", color: "text-yellow-200", element: 'plant' }
+                ],
+                boss: { 
+                    name: "Diamond Colossus", level: 30, hp: 8000, dmg: 180, xp: { earth: 600, strength: 400, holy: 300, endurance: 500 }, icon: "game-icons:crystal-growth", color: "text-cyan-200", element: 'earth',
+                    gimmick: { id: "crystal_shell", name: "Prismatic Skin", desc: "-80% DMG taken from Basic Atks, +200% DMG from Skills" }
+                }
+            },
+            {
+                id: 5,
+                name: "Sunken City",
+                desc: "Ruins beneath the waves.",
+                x: 22.5, y: 70,
+                monsters: [
+                    { name: "Merfolk Warrior", level: 28, hp: 3000, dmg: 120, xp: { water: 160, dexterity: 60, strength: 60 }, icon: "game-icons:mermaid", color: "text-teal-400", element: 'water' },
+                    { name: "Living Coral", level: 30, hp: 3500, dmg: 100, xp: { plant: 160, intelligence: 70, endurance: 70 }, icon: "game-icons:coral", color: "text-pink-700", element: 'plant' },
+                    { name: "Deep Kraken", level: 32, hp: 5500, dmg: 150, xp: { strength: 100, ice: 100, darkness: 60, water: 60 }, icon: "game-icons:squid-head", color: "text-indigo-600", element: 'ice' },
+                    { name: "Electric Eel", level: 29, hp: 2800, dmg: 130, xp: { lightning: 130, dexterity: 80, water: 80 }, icon: "game-icons:eel", color: "text-yellow-300", element: 'lightning' }
+                ],
+                boss: { 
+                    name: "Leviathan", level: 38, hp: 20000, dmg: 300, xp: { water: 800, strength: 500, darkness: 300, intelligence: 300 }, icon: "game-icons:sea-serpent", color: "text-blue-800", element: 'water',
+                    gimmick: { id: "deep_pressure", name: "Abyssal Pressure", desc: "Health Regen and Lifesteal reduced by 50%" }
+                }
+            },
+            {
+                id: 6,
+                name: "Frozen Cliffs",
+                desc: "Bitter cold and biting winds.",
+                x: 35, y: 15,
+                monsters: [
+                    { name: "Blizard Bird", level: 32, hp: 5000, dmg: 180, xp: { air: 110, ice: 110, dexterity: 100 }, icon: "game-icons:egyptian-bird", color: "text-blue-200", element: 'air' },
+                    { name: "Ice Golem", level: 34, hp: 8000, dmg: 200, xp: { ice: 120, earth: 120, endurance: 100 }, icon: "game-icons:ice-golem", color: "text-cyan-100", element: 'ice' },
+                    { name: "Frost Spirit", level: 33, hp: 4500, dmg: 220, xp: { darkness: 110, ice: 110, intelligence: 110 }, icon: "game-icons:spectre", color: "text-white", element: 'darkness' },
+                    { name: "Yeti", level: 35, hp: 9000, dmg: 250, xp: { strength: 150, dexterity: 100, endurance: 100 }, icon: "game-icons:sasquatch", color: "text-gray-200", element: 'physical' }
+                ],
+                boss: {
+                    name: "Ice Queen", level: 40, hp: 35000, dmg: 400, xp: { ice: 900, intelligence: 500, darkness: 500 }, icon: "game-icons:female-elf-face", color: "text-cyan-300", element: 'ice',
+                    gimmick: { id: "frozen_heart", name: "Frozen Heart", desc: "Reduces Player Attack Speed by 30%" }
+                }
+            },
+            {
+                id: 7,
+                name: "Sky Summit",
+                desc: "Where the air is thin.",
+                x: 48.5, y: 17,
+                monsters: [
+                    { name: "Harpie Dancer", level: 36, hp: 8000, dmg: 250, xp: { air: 140, dexterity: 90 }, icon: "game-icons:harpy", color: "text-gray-200", element: 'air' },
+                    { name: "Storm Griffin", level: 38, hp: 10000, dmg: 300, xp: { air: 180, holy: 100, strength: 100 }, icon: "game-icons:griffin-symbol", color: "text-yellow-100", element: 'air' },
+                    { name: "Djinn", level: 40, hp: 12000, dmg: 350, xp: { fire: 150, intelligence: 150, air: 100 }, icon: "game-icons:djinn", color: "text-cyan-200", element: 'fire' },
+                    { name: "Thunder Ray", level: 39, hp: 11000, dmg: 320, xp: { lightning: 210, air: 180 }, icon: "game-icons:manta-ray", color: "text-amber-500", element: 'lightning' }
+                ],
+                boss: { 
+                    name: "Thunderbird", level: 45, hp: 50000, dmg: 500, xp: { lightning: 1000, air: 1000, dexterity: 400, holy: 200 }, icon: "game-icons:eagle-emblem", color: "text-yellow-400", element: 'lightning',
+                    gimmick: { id: "static_shock", name: "Static Shell", desc: "Reflects 10% of damage taken" }
+                }
+            },
+            {
+                id: 8,
+                name: "Sanctum of Light",
+                desc: "Blinding radiance.",
+                x: 87, y: 79,
+                monsters: [
+                    { name: "Guardian Statue", level: 44, hp: 20000, dmg: 450, xp: { earth: 200, endurance: 120, strength: 120 }, icon: "fa-chess-rook", color: "text-yellow-600", element: 'earth' },
+                    { name: "Light Wisp", level: 42, hp: 15000, dmg: 500, xp: { holy: 200, intelligence: 110, air: 110 }, icon: "fa-sun", color: "text-yellow-200", element: 'holy' },
+                    { name: "Seraph", level: 46, hp: 25000, dmg: 600, xp: { holy: 260, dexterity: 100, fire: 100 }, icon: "game-icons:angel-wings", color: "text-orange-200", element: 'holy' },
+                    { name: "Animated Armor", level: 45, hp: 22000, dmg: 550, xp: { strength: 150, holy: 150, lightning: 150 }, icon: "game-icons:plate-claw", color: "text-gray-300", element: 'physical' }
+                ],
+                boss: { 
+                    name: "Archangel", level: 50, hp: 80000, dmg: 800, xp: { holy: 1500, strength: 800, lightning: 500, intelligence: 500 }, icon: "game-icons:angel-outfit", color: "text-yellow-100", element: 'holy',
+                    gimmick: { id: "divine_shield", name: "Divine Shield", desc: "Blocks 1 attack every 6 seconds" }
+                }
+            },
+            {
+                id: 9,
+                name: "Void Plane",
+                desc: "Reality bends here.",
+                x: 9.5, y: 17.5,
+                monsters: [
+                    { name: "Void Walker", level: 48, hp: 45000, dmg: 900, xp: { darkness: 240, intelligence: 240 }, icon: "game-icons:robe", color: "text-purple-300", element: 'darkness' },
+                    { name: "Chaos Knight", level: 50, hp: 70000, dmg: 1200, xp: { strength: 175, endurance: 175, darkness: 150 }, icon: "game-icons:black-knight-helm", color: "text-gray-200", element: 'physical' },
+                    { name: "Abyssal Eye", level: 52, hp: 55000, dmg: 1500, xp: { plant:220, darkness: 150, intelligence: 150}, icon: "game-icons:behold", color: "text-red-500", element: 'plant' },
+                    { name: "Void Leech", level: 49, hp: 35000, dmg: 1000, xp: { water: 290, darkness: 200 }, icon: "game-icons:leech", color: "text-purple-800", element: 'water' }
+                ],
+                boss: { 
+                    name: "Void God", level: 70, hp: 250000, dmg: 2000, xp: { darkness: 3000, intelligence: 2000, strength: 2000, endurance: 2000 }, icon: "game-icons:skull-mask", color: "text-black", element: 'darkness',
+                    gimmick: { id: "entropy", name: "Entropy", desc: "Damage taken increases by 20% every 3s" }
+                }
+            }
+        ];
+
+        // --- ARTIFACT DATA ---
+        const ARTIFACT_DATA = {
+            // Zone 0: Rat Cellar
+            "Giant Rat": { name: "Rat Tail", icon: "game-icons:armadillo-tail", desc: "A twitching tail." },
+            "Slime": { name: "Sticky Glob", icon: "game-icons:transparent-slime", desc: "Forever gooey." },
+            "Cellar Beetle": { name: "Hard Carapace", icon: "game-icons:beetle-shell", desc: "Surprisingly tough." },
+            "Blot Fly": { name: "Compound Eye", icon: "game-icons:kaleidoscope-pearls", desc: "It watches you." },
+            "Sporeweb Spider": { name: "Mushroom Cluster", icon: "game-icons:mushrooms-cluster", desc: "Poisonous fungal growth." },
+
+            // Zone 1: Dark Forest
+            "Dire Wolf": { name: "Wolf Fang", icon: "game-icons:fangs", desc: "Sharp and bloody." },
+            "Vampire Bat": { name: "Bat Wing", icon: "game-icons:bat-wing", desc: "Leathery membrane." },
+            "Forest Bear": { name: "Bear Claw", icon: "game-icons:claw-string", desc: "Massive and sharp." },
+            "Treant": { name: "Living Bark", icon: "game-icons:wood-stick", desc: "Still growing." },
+            "Werewolf": { name: "Crescent Moon Charm", icon: "game-icons:moon", desc: "cursed silver." },
+
+            // Zone 2: Misty Marsh
+            "Mud Crab": { name: "Crab Pincer", icon: "game-icons:crab-claw", desc: "Snip snip." },
+            "Giant Toad": { name: "Toad Tadpole", icon: "game-icons:tadpole", desc: "Slimy little offspring." },
+            "Swamp Witch": { name: "Hexed Totem", icon: "game-icons:voodoo-doll", desc: "Full of bad vibes." },
+            "Poison Ivy": { name: "Toxic Leaf", icon: "game-icons:leaf-skeleton", desc: "Don't touch it." },
+            "Hydra": { name: "Regenerating Scale", icon: "game-icons:shoulder-scales", desc: "Warm to the touch." },
+
+            // Zone 3: Molten Core
+            "Magma Cube": { name: "Obsidian Shard", icon: "game-icons:rock", desc: "Sharp volcanic glass." },
+            "Lava Golem": { name: "Molten Heart", icon: "game-icons:burning-meteor", desc: "Burning hot." },
+            "Fire Spirit": { name: "Ember Essence", icon: "game-icons:fire-ray", desc: "Flickering light." },
+            "Ash Sprite": { name: "Jar of Ash", icon: "game-icons:powder", desc: "Grey dust." },
+            "Fire Dragon": { name: "Dragon heart", icon: "game-icons:dragon-orb", desc: "Indestructible heat." },
+
+            // Zone 4: Crystal Cavern
+            "Rock Elemental": { name: "Living Stone", icon: "game-icons:stone-block", desc: "Pulses slowly." },
+            "Conductor Spider": { name: "Static Web", icon: "game-icons:spider-web", desc: "Zaps on touch." },
+            "Gem Golem": { name: "Perfect Ruby", icon: "game-icons:emerald", desc: "Flawless gem." },
+            "Crystalline Flower": { name: "Crystal Petal", icon: "game-icons:flower-star", desc: "Fragile beauty." },
+            "Diamond Colossus": { name: "Diamond Core", icon: "game-icons:diamond-trophy", desc: "The hardest material." },
+
+            // Zone 5: Sunken City
+            "Merfolk Warrior": { name: "Trident Tip", icon: "game-icons:trident", desc: "Rusted but sharp." },
+            "Living Coral": { name: "Coral Branch", icon: "game-icons:coral", desc: "Sharp and colorful." },
+            "Deep Kraken": { name: "Kraken Tentacles", icon: "game-icons:tentacles-barrier", desc: "Crushes ships." },
+            "Electric Eel": { name: "Spark Gland", icon: "game-icons:lightning-frequency", desc: "Shocking." },
+            "Leviathan": { name: "Abyssal Pearl", icon: "game-icons:mineral-pearls", desc: "Pitch black." },
+
+            // Zone 6: Frozen Cliffs
+            "Blizard Bird": { name: "Frozen Feather", icon: "game-icons:feather", desc: "Cold as ice." },
+            "Ice Golem": { name: "Permafrost Chunk", icon: "game-icons:ice-cube", desc: "Never melts." },
+            "Frost Spirit": { name: "Captured Breath", icon: "game-icons:snowflake-2", desc: "A visible gasp." },
+            "Yeti": { name: "White Fur", icon: "game-icons:cape", desc: "Thick and warm." },
+            "Ice Queen": { name: "Ice Crown", icon: "game-icons:crown", desc: "Radiates authority." },
+
+            // Zone 7: Sky Summit
+            "Harpie Dancer": { name: "Wind Plume", icon: "game-icons:wing-cloak", desc: "Aerodynamic." },
+            "Storm Griffin": { name: "Griffin Talon", icon: "game-icons:bird-limb", desc: "Noble trophy." },
+            "Djinn": { name: "Magic Lamp", icon: "game-icons:magic-lamp", desc: "Smells of smoke." },
+            "Thunder Ray": { name: "Storm Fin", icon: "game-icons:shark-fin", desc: "Conducts electricity." },
+            "Thunderbird": { name: "Lightning Quill", icon: "game-icons:feather-wound", desc: "Crackles with power." },
+
+            // Zone 8: Sanctum of Light
+            "Guardian Statue": { name: "Marble Chip", icon: "game-icons:stone-bust", desc: "Holy stone." },
+            "Light Wisp": { name: "Light Mote", icon: "game-icons:fairy", desc: "Pure photon." },
+            "Seraph": { name: "Golden Feather", icon: "game-icons:angel-wings", desc: "Blindingly bright." },
+            "Animated Armor": { name: "Haunted Gauntlet", icon: "game-icons:gauntlet", desc: "Moves on its own." },
+            "Archangel": { name: "Halo Vestige", icon: "game-icons:spike-halo", desc: "Divine circle." },
+
+            // Zone 9: Void Plane
+            "Void Walker": { name: "Void Essence", icon: "game-icons:black-hole-bolas", desc: "Nothingness." },
+            "Chaos Knight": { name: "Chaos Plate", icon: "game-icons:armor-vest", desc: "Shifting metal." },
+            "Abyssal Eye": { name: "Gazing Lens", icon: "game-icons:eye-target", desc: "It blinks." },
+            "Void Leech": { name: "Cosmic Slime", icon: "game-icons:gooey-impact", desc: "Star stuff." },
+            "Void God": { name: "Reality Shard", icon: "game-icons:fragmented-meteor", desc: "The end of all things." }
+        };
+
+        const SKILLS = {
+            strength: [
+                { id: 's1', name: 'Lacerate', desc: 'Deal Damage/sec', cost: 1, type: 'passive', effect: { dpsPct: 0.20 } },
+                { id: 's2', name: 'Bash', desc: 'Active: Heavy Strike', cost: 1, type: 'active', base: 1.5, cooldown: 8000, effect: 'heavyStrike', element: 'physical', scale: { damageMult: 0.1 } },
+                { id: 's3', name: 'Brute Force', desc: '+3 Base Damage', cost: 2, type: 'passive', effect: { damage: 3 } },
+                { id: 's4', name: 'War Cry', desc: 'Active: Dmg Buff', cost: 2, type: 'active', base: 10000, cooldown: 60000, effect: 'warCry', element: 'physical', scale: { duration: 1000 } },
+                { id: 's5', name: 'Titan Grip', desc: '+4% Base Damage', cost: 3, type: 'passive', effect: { damageMult: 0.04 } },
+                { id: 's6', name: 'Gigastrike', desc: 'Active: Massive Damage', cost: 4, type: 'active', base: 4.0, cooldown: 30000, effect: 'gigastrike', element: 'physical', scale: { damageMult: 0.25 } }
+            ],
+            endurance: [
+                { id: 'e1', name: 'Thick Skin', desc: '+15 Max HP', cost: 1, type: 'passive', effect: { hp: 15 } },
+                { id: 'e2', name: 'Shield Bash', desc: 'Active: Dmg based on Defense', cost: 1, type: 'active', base: 1.0, cooldown: 8000, effect: 'shieldBash', element: 'physical', scale: { defMult: 0.5 } },
+                { id: 'e3', name: 'Resistance', desc: '+3 Base Defense', cost: 2, type: 'passive', effect: { defense: 3 } },
+                { id: 'e4', name: 'Defensive Stance', desc: 'Active: -50% Dmg Taken', cost: 2, type: 'active', base: 3000, cooldown: 20000, effect: 'defensiveStance', element: 'physical', scale: { duration: 500 } },
+                { id: 'e5', name: 'Regeneration', desc: '+0.5% Health Regen/sec', cost: 3, type: 'passive', effect: { regenPct: 0.005 } },
+                { id: 'e6', name: 'Immortality', desc: 'Active: Immune to Dmg', cost: 4, type: 'active', base: 4000, cooldown: 45000, effect: 'immortality', element: 'physical', scale: { duration: 500 } }
+            ],
+            dexterity: [
+                { id: 'd1', name: 'Light Foot', desc: '-0.05s Attack Time', cost: 1, type: 'passive', effect: { speed: 0.05 } },
+                { id: 'd2', name: 'Quick Stab', desc: 'Active: Fast Attack', cost: 1, type: 'active', base: 1.2, cooldown: 5000, effect: 'quickStab', element: 'physical', scale: { damageMult: 0.08 } },
+                { id: 'd3', name: 'Precision', desc: '+5% Crit Chance', cost: 2, type: 'passive', effect: { critChance: 0.05 } },
+                { id: 'd4', name: 'Double Strike', desc: 'Active: 2x Atk/CD Speed', cost: 2, type: 'active', base: 5000, cooldown: 25000, effect: 'doubleStrikeBuff', element: 'physical', scale: { duration: 1000 } },
+                { id: 'd5', name: 'Evasion', desc: '+2.5% Dodge Chance', cost: 3, type: 'passive', effect: { dodge: 0.025 } },
+                { id: 'd6', name: 'Omnislash', desc: 'Active: Multi-hit Attack', cost: 4, type: 'active', base: 3, cooldown: 20000, effect: 'omnislash', element: 'physical', scale: { hits: 1.0 } }
+            ],
+            intelligence: [
+                { id: 'i1', name: 'Smart', desc: '+10% XP Gain', cost: 1, type: 'passive', effect: { xpMult: 0.10 } },
+                { id: 'i2', name: 'Magic Bullet', desc: 'Active: INT Scaling Dmg', cost: 1, type: 'active', base: 40, cooldown: 6000, effect: 'magicBolt', element: 'physical', scale: { intScale: 1 } },
+                { id: 'i3', name: 'Neural Network', desc: 'Auto-trigger +1 Active Skill', cost: 2, type: 'passive', effect: { autocastSlots: 1 } },
+                { id: 'i4', name: 'Time Warp', desc: 'Active: Reduce cooldowns', cost: 2, type: 'active', base: 10000, cooldown: 60000, effect: 'timeWarp', element: 'physical', scale: { reduction: 1000 } },
+                { id: 'i5', name: 'Multitasking', desc: '+2% Cooldown Reduction', cost: 3, type: 'passive', effect: { cdr: 0.02 } },
+                { id: 'i6', name: 'Mind Blast', desc: 'Active: Heavy Dmg + Stun', cost: 4, type: 'active', base: 3.5, cooldown: 30000, effect: 'mindBlast', element: 'physical', scale: { duration: 250 } }
+            ],
+            fire: [
+                { id: 'f1', name: 'Heat', desc: '+2 Base Damage', cost: 1, type: 'passive', effect: { damage: 2 } },
+                { id: 'f2', name: 'Fireball', desc: 'Active: Fire Damage', cost: 1, type: 'active', base: 1.6, cooldown: 8000, effect: 'fireball', element: 'fire', scale: { damageMult: 0.15 } },
+                { id: 'f3', name: 'Inner Fire', desc: '+5% Base Damage', cost: 2, type: 'passive', effect: { damageMult: 0.05 } },
+                { id: 'f4', name: 'Ignite', desc: 'Active: Burn enemy', cost: 2, type: 'active', base: 5, cooldown: 15000, effect: 'ignite', element: 'fire', scale: { damage: 3 } },
+                { id: 'f5', name: 'Combustion', desc: 'Add 20% Attack to Active Skill Dmg', cost: 3, type: 'passive', effect: { activeDmgBonus: 0.20 } },
+                { id: 'f6', name: 'Meteor', desc: 'Active: Massive Fire Dmg', cost: 4, type: 'active', base: 4.5, cooldown: 40000, effect: 'explosion', element: 'fire', scale: { damageMult: 0.3 } }
+            ],
+            darkness: [
+                { id: 'da1', name: 'Shadow', desc: '+2.5% Dodge Chance', cost: 1, type: 'passive', effect: { dodge: 0.025 } },
+                { id: 'da2', name: 'Drain Life', desc: 'Active: Steal HP', cost: 1, type: 'active', base: 0.15, cooldown: 8000, effect: 'drainLife', element: 'darkness', scale: { drainPct: 0.03 } },
+                { id: 'da3', name: 'Leech', desc: 'Heal 2 HP on hit', cost: 2, type: 'passive', effect: { lifeOnHit: 2 } },
+                { id: 'da4', name: 'Curse', desc: 'Active: Dmg Taken Debuff', cost: 2, type: 'active', base: 10000, cooldown: 20000, effect: 'curse', element: 'darkness', scale: { duration: 500 } },
+                { id: 'da5', name: 'Nightstalker', desc: '+5% Crit Chance', cost: 3, type: 'passive', effect: { critChance: 0.05 } },
+                { id: 'da6', name: 'Nightmare', desc: 'Active: Confusion', cost: 4, type: 'active', base: 5000, cooldown: 30000, effect: 'confusion', element: 'darkness', scale: { duration: 500 } }
+            ],
+            earth: [
+                { id: 'ea1', name: 'Stone Skin', desc: '+2 Base Defense', cost: 1, type: 'passive', effect: { defense: 2 } },
+                { id: 'ea2', name: 'Rock Throw', desc: 'Active: Earth Damage', cost: 1, type: 'active', base: 1.6, cooldown: 8000, effect: 'rockThrow', element: 'earth', scale: { damageMult: 0.15 } },
+                { id: 'ea3', name: 'Mountain', desc: '+15% Max HP', cost: 2, type: 'passive', effect: { hpMult: 0.15 } },
+                { id: 'ea4', name: 'Tremor', desc: 'Active: Stun', cost: 2, type: 'active', base: 2000, cooldown: 22000, effect: 'stun', element: 'earth', scale: { duration: 250 } },
+                { id: 'ea5', name: 'Spiked Armor', desc: 'Reflect 10% Dmg', cost: 3, type: 'passive', effect: { thorns: 0.1 } },
+                { id: 'ea6', name: 'Earthquake', desc: 'Active: Earth Dmg + Stun', cost: 4, type: 'active', base: 3.5, cooldown: 40000, effect: 'earthquake', element: 'earth', scale: { damageMult: 0.25 } }
+            ],
+            water: [
+                { id: 'w1', name: 'Flow', desc: '+5% Regen Speed', cost: 1, type: 'passive', effect: { regenPct: 0.01 } }, 
+                { id: 'w2', name: 'Water Gun', desc: 'Active: Water Damage', cost: 1, type: 'active', base: 1.5, cooldown: 6000, effect: 'waterGun', element: 'water', scale: { damageMult: 0.15 } },
+                { id: 'w3', name: 'Liquid Form', desc: '+2.5% Dodge', cost: 2, type: 'passive', effect: { dodge: 0.025 } },
+                { id: 'w4', name: 'Chill', desc: 'Active: Slow enemy', cost: 2, type: 'active', base: 5000, cooldown: 15000, effect: 'chill', element: 'water', scale: { duration: 1000 } },
+                { id: 'w5', name: 'Ocean Soul', desc: '+30 Max HP', cost: 3, type: 'passive', effect: { hp: 30 } },
+                { id: 'w6', name: 'Tsunami', desc: 'Active: Water Dmg + Soak', cost: 4, type: 'active', base: 3.5, cooldown: 30000, effect: 'tidalCrash', element: 'water', scale: { damageMult: 0.3 } }
+            ],
+            air: [
+                { id: 'a1', name: 'Tailwind', desc: '-0.05s Attack Time', cost: 1, type: 'passive', effect: { speed: 0.05 } },
+                { id: 'a2', name: 'Gust', desc: 'Active: Air Damage', cost: 1, type: 'active', base: 1.2, cooldown: 5000, effect: 'gust', element: 'air', scale: { damageMult: 0.1 } },
+                { id: 'a3', name: 'Updraft', desc: '+5% Crit Chance', cost: 2, type: 'passive', effect: { critChance: 0.05 } },
+                { id: 'a4', name: 'Gale', desc: 'Active: Atk Spd Buff', cost: 2, type: 'active', base: 3000, cooldown: 30000, effect: 'galeBuff', element: 'air', scale: { duration: 500 } },
+                { id: 'a5', name: 'Zephyr', desc: '+15% Buff Duration', cost: 3, type: 'passive', effect: { buffDurationMult: 0.15 } },
+                { id: 'a6', name: 'Tornado', desc: 'Active: Air Dmg + Stun', cost: 4, type: 'active', base: 2.5, cooldown: 20000, effect: 'lightning', element: 'air', scale: { damageMult: 0.2 } }
+            ],
+            holy: [
+                { id: 'h1', name: 'Purity', desc: '+20 Max HP', cost: 1, type: 'passive', effect: { hp: 20 } },
+                { id: 'h2', name: 'Light Beam', desc: 'Active: Holy Damage', cost: 1, type: 'active', base: 1.6, cooldown: 8000, effect: 'lightBeam', element: 'holy', scale: { damageMult: 0.15 } },
+                { id: 'h3', name: 'Devotion', desc: '+3 Life On Hit', cost: 2, type: 'passive', effect: { lifeOnHit: 3 } },
+                { id: 'h4', name: 'Blessing', desc: 'Active: Heal + Buff', cost: 2, type: 'active', base: 0.2, cooldown: 35000, effect: 'blessing', element: 'holy', scale: { healPct: 0.01 } },
+                { id: 'h5', name: 'Divinity', desc: '+10 Base Defense', cost: 3, type: 'passive', effect: { defense: 10 } },
+                { id: 'h6', name: 'Judgment', desc: 'Active: Massive Holy Dmg', cost: 4, type: 'active', base: 4.0, cooldown: 35000, effect: 'smite', element: 'holy', scale: { damageMult: 0.3 } }
+            ],
+            ice: [
+                { id: 'ic1', name: 'Permafrost', desc: '+2 Defense', cost: 1, type: 'passive', effect: { defense: 2 } },
+                { id: 'ic2', name: 'Ice Shard', desc: 'Active: Ice Damage', cost: 1, type: 'active', base: 1.5, cooldown: 6000, effect: 'iceShard', element: 'ice', scale: { damageMult: 0.15 } },
+                { id: 'ic3', name: 'Glacial', desc: '+20 Max HP', cost: 2, type: 'passive', effect: { hp: 20 } },
+                { id: 'ic4', name: 'Freeze', desc: 'Active: Stun', cost: 2, type: 'active', base: 2000, cooldown: 25000, effect: 'stun', element: 'ice', scale: { duration: 250 } },
+                { id: 'ic5', name: 'Cold Blood', desc: '+5% Max HP', cost: 3, type: 'passive', effect: { hpMult: 0.05 } },
+                { id: 'ic6', name: 'Blizzard', desc: 'Active: Ice DOT', cost: 4, type: 'active', base: 1.0, cooldown: 30000, effect: 'blizzard', element: 'ice', scale: { duration: 1000 } }
+            ],
+            plant: [
+                { id: 'p1', name: 'Photosynthesis', desc: '+0.5% Regen', cost: 1, type: 'passive', effect: { regenPct: 0.005 } },
+                { id: 'p2', name: 'Vine Whip', desc: 'Active: Plant Damage', cost: 1, type: 'active', base: 1.2, cooldown: 5000, effect: 'vineWhip', element: 'plant', scale: { damageMult: 0.1 } },
+                { id: 'p3', name: 'Roots', desc: '+20 Max HP', cost: 2, type: 'passive', effect: { hp: 20 } },
+                { id: 'p4', name: 'Entangle', desc: 'Active: Slow enemy', cost: 2, type: 'active', base: 4000, cooldown: 18000, effect: 'entangle', element: 'plant', scale: { duration: 1000 } },
+                { id: 'p5', name: 'Overgrowth', desc: '+5 Life On Hit', cost: 3, type: 'passive', effect: { lifeOnHit: 5 } },
+                { id: 'p6', name: 'Solar Beam', desc: 'Active: Massive Plant Dmg', cost: 4, type: 'active', base: 4.5, cooldown: 35000, effect: 'solarBeam', element: 'plant', scale: { damageMult: 0.3 } }
+            ],
+            lightning: [
+                { id: 'l1', name: 'Charge', desc: '+0.05s Attack Speed', cost: 1, type: 'passive', effect: { speed: 0.05 } },
+                { id: 'l2', name: 'Shock', desc: 'Active: Lightning Damage', cost: 1, type: 'active', base: 1.5, cooldown: 6000, effect: 'shock', element: 'lightning', scale: { damageMult: 0.15 } },
+                { id: 'l3', name: 'High Voltage', desc: '+5% Crit Chance', cost: 2, type: 'passive', effect: { critChance: 0.05 } },
+                { id: 'l4', name: 'Paralysis', desc: 'Active: Stun', cost: 2, type: 'active', base: 1000, cooldown: 15000, effect: 'stun', element: 'lightning', scale: { duration: 100 } },
+                { id: 'l5', name: 'Overload', desc: '+10% Crit Damage', cost: 3, type: 'passive', effect: { critDmg: 0.10 } },
+                { id: 'l6', name: 'Thunderstorm', desc: 'Active: Massive Lightning Dmg', cost: 4, type: 'active', base: 4.0, cooldown: 30000, effect: 'thunderstorm', element: 'lightning', scale: { damageMult: 0.25 } }
+            ]
+        };
+        
+        // Optimized Skill Lookup Map
+        const SKILL_LOOKUP = {};
+        for(const attr in SKILLS) {
+            SKILLS[attr].forEach(skill => {
+                SKILL_LOOKUP[skill.id] = { ...skill, attr };
+            });
+        }
+
+        // --- GAME STATE ---
+
+        let state = getInitialState();
+
+        function getInitialState() {
+            let s = {
+                attributes: {},
+                skillLevels: {}, 
+                currentZone: 0,
+                maxUnlockedZone: 0,
+                zoneKills: 0, 
+                cooldowns: {},
+                autocastPreferences: {}, 
+                skillOrder: [], 
+                ngPlus: 0,
+                prestigeXP: 0,
+                artifacts: [],
+                lastSave: Date.now()
+            };
+            
+            for (let key in ATTRIBUTES) {
+                s.attributes[key] = { level: 1, xp: 0, maxXp: 100, sp: 0 };
+                s.skillLevels[key] = {};
+            }
+            return s;
+        }
+
+        function initDefaultState() {
+             state = getInitialState();
+        }
+
+        let combat = {
+            playerHp: 100,
+            playerMaxHp: 100,
+            enemy: null,
+            enemyHp: 0,
+            enemyMaxHp: 10,
+            attackTimer: 10000, 
+            enemyAttackTimer: 0,
+            isStunned: false, 
+            stunTimer: 0,
+            isBoss: false, 
+            currentGimmick: null,
+            gimmickTimer: 0, 
+            gimmickStacks: 0, 
+            buffs: [],
+            dpsTimer: 0,
+            regenTimer: 0 
+        };
+
+        let calculatedStats = {
+            damage: 1,
+            hp: 100,
+            defense: 0,
+            attackSpeed: 2.0,
+            critChance: 0.05,
+            critDmg: 1.5,
+            lifeOnHit: 0,
+            dodge: 0,
+            xpMult: 1.0,
+            regenPct: 0,
+            cdr: 0,
+            dpsPct: 0,
+            autocastSlots: 0,
+            thorns: 0,
+            activeDmgBonus: 0,
+            buffDurationMult: 1.0
+        };
+
+        let activeEffects = [];
+        let allUnlockedSkills = []; 
+        let isPaused = false;
+        let isHardResetting = false;
+        
+        let domCache = {};
+
+        // --- HELPER: Number Formatter ---
+        function formatNumber(num) {
+            if (num >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+            return Math.floor(num).toLocaleString();
+        }
+
+        // --- CORE FUNCTIONS ---
+
+        function init() {
+            loadGame();
+            if(!combat.enemy) spawnEnemy();
+            
+            initAttributeUI();
+            updateAttributeUI();
+            
+            renderActiveSkillsList(); 
+            updateZoneProgressUI(); 
+            requestAnimationFrame(gameLoop);
+            
+            setInterval(saveGame, 30000);
+            
+            window.addEventListener('beforeunload', () => {
+                saveGame();
+            });
+        }
+
+        function calculateStats() {
+            let stats = {
+                damage: 6,
+                damageMult: 1.0,
+                hp: 120,
+                hpMult: 1.0,
+                defense: 0,
+                attackSpeed: 2.0,
+                critChance: 0.05,
+                critDmg: 1.5,
+                lifeOnHit: 0,
+                dodge: 0,
+                xpMult: 1.0,
+                regenPct: 0,
+                cdr: 0,
+                dpsPct: 0,
+                autocastSlots: 0,
+                thorns: 0,
+                activeDmgBonus: 0,
+                buffDurationMult: 1.0
+            };
+
+            const getLvl = (key) => (state.attributes[key] ? state.attributes[key].level : 1);
+
+            // Attribute scaling
+            stats.damage += (getLvl('strength') - 1) * 0.8;
+            stats.hp += (getLvl('endurance') - 1) * 8;
+            stats.xpMult += (getLvl('intelligence') - 1) * 0.02;
+            stats.critDmg += (getLvl('dexterity') - 1) * 0.02;
+            stats.critChance += (getLvl('dexterity') - 1) * 0.005; 
+
+            // Passive Skills Scaling
+            for (let attr in state.skillLevels) {
+                if(state.skillLevels[attr]) {
+                    for (let skillId in state.skillLevels[attr]) {
+                        const level = state.skillLevels[attr][skillId];
+                        if (level <= 0) continue;
+
+                        const skill = SKILL_LOOKUP[skillId];
+                        
+                        if (skill && skill.type === 'passive') {
+                            if (skill.effect.damage) stats.damage += skill.effect.damage * level;
+                            if (skill.effect.damageMult) stats.damageMult += skill.effect.damageMult * level;
+                            if (skill.effect.hp) stats.hp += skill.effect.hp * level;
+                            if (skill.effect.hpMult) stats.hpMult += skill.effect.hpMult * level;
+                            if (skill.effect.defense) stats.defense += skill.effect.defense * level;
+                            if (skill.effect.speed) {
+                                let reductionPerLevel = skill.effect.speed; // e.g., 0.05
+                                let multiplier = Math.pow(1 - reductionPerLevel, level);
+                                stats.attackSpeed *= multiplier;
+                            }
+                            if (skill.effect.critChance) stats.critChance += skill.effect.critChance * level;
+                            if (skill.effect.critDmg) stats.critDmg += skill.effect.critDmg * level;
+                            if (skill.effect.lifeOnHit) stats.lifeOnHit += skill.effect.lifeOnHit * level;
+                            if (skill.effect.dodge) stats.dodge += skill.effect.dodge * level;
+                            if (skill.effect.xpMult) stats.xpMult += skill.effect.xpMult * level;
+                            if (skill.effect.regenPct) stats.regenPct += skill.effect.regenPct * level;
+                            if (skill.effect.cdr) stats.cdr += skill.effect.cdr * level;
+                            if (skill.effect.dpsPct) stats.dpsPct += skill.effect.dpsPct * level;
+                            if (skill.effect.autocastSlots) stats.autocastSlots += skill.effect.autocastSlots * level;
+                            if (skill.effect.thorns) stats.thorns += skill.effect.thorns * level;
+                            if (skill.effect.activeDmgBonus) stats.activeDmgBonus += skill.effect.activeDmgBonus * level;
+                            if (skill.effect.buffDurationMult) stats.buffDurationMult += skill.effect.buffDurationMult * level;
+                        }
+                    }
+                }
+            }
+
+            stats.damage = Math.floor(stats.damage * stats.damageMult);
+            stats.hp = Math.floor(stats.hp * stats.hpMult);
+
+            if (stats.attackSpeed < 0.1) stats.attackSpeed = 0.1;
+            if (stats.cdr > 0.75) stats.cdr = 0.75;
+            
+            // Prestige Bonus (1% per point)
+            stats.xpMult += (state.prestigeXP || 0) / 100;
+            
+            calculatedStats = stats;
+            combat.playerMaxHp = calculatedStats.hp;
+            if (combat.playerHp > combat.playerMaxHp) combat.playerHp = combat.playerMaxHp;
+
+            updateStatSheet();
+            updateAutocastUI();
+        }
+
+        function getXpReq(level) {
+            return Math.floor(100 * Math.pow(1.15, level - 1));
+        }
+
+        function spawnEnemy() {
+            if(!ZONES[state.currentZone]) state.currentZone = 0;
+            const zone = ZONES[state.currentZone];
+            
+            const ng = state.ngPlus || 0;
+            const hpMult = Math.pow(5, ng);
+            const dmgMult = Math.pow(2.5, ng);
+            const xpMult = Math.pow(2, ng);
+
+            combat.currentGimmick = null;
+            combat.gimmickTimer = 0;
+            combat.gimmickStacks = 0;
+
+            const gimmickContainer = document.getElementById('boss-gimmick-container');
+            const gimmickName = document.getElementById('gimmick-name');
+            const gimmickDesc = document.getElementById('gimmick-desc');
+
+            if (state.zoneKills >= 10 && zone.boss) {
+                combat.enemy = JSON.parse(JSON.stringify(zone.boss));
+                combat.isBoss = true;
+                
+                if (combat.enemy.gimmick) {
+                    combat.currentGimmick = combat.enemy.gimmick.id;
+                    gimmickContainer.classList.remove('hidden');
+                    gimmickName.innerText = combat.enemy.gimmick.name;
+                    gimmickDesc.innerText = combat.enemy.gimmick.desc;
+                } else {
+                    gimmickContainer.classList.add('hidden');
+                }
+                
+                log("WARNING: A powerful foe approaches!", "text-red-500 font-bold text-lg");
+            } else {
+                const monsterTemplate = zone.monsters[Math.floor(Math.random() * zone.monsters.length)];
+                combat.enemy = JSON.parse(JSON.stringify(monsterTemplate)); 
+                combat.isBoss = false;
+                gimmickContainer.classList.add('hidden');
+            }
+            
+            // Default element if missing (legacy save safety)
+            if(!combat.enemy.element) combat.enemy.element = 'physical';
+
+            combat.enemy.hp = Math.floor(combat.enemy.hp * hpMult);
+            combat.enemy.dmg = Math.floor(combat.enemy.dmg * dmgMult);
+            for(let key in combat.enemy.xp) {
+                combat.enemy.xp[key] = Math.floor(combat.enemy.xp[key] * xpMult);
+            }
+
+            combat.enemyMaxHp = combat.enemy.hp;
+            combat.enemyHp = combat.enemy.hp;
+            combat.enemyAttackTimer = 0;
+            combat.isStunned = false;
+            combat.stunTimer = 0;
+            combat.dpsTimer = 0; 
+            activeEffects = [];
+
+            const nameEl = document.getElementById('enemy-name');
+            nameEl.innerText = combat.enemy.name + (ng > 0 ? ` (NG+${ng})` : "");
+            nameEl.className = combat.isBoss ? "text-red-500 font-bold uppercase tracking-widest" : (combat.enemy.hp > 2000 ? "text-red-400 font-bold" : "text-gray-300");
+            
+            // Element Badge
+            const elBadge = document.getElementById('enemy-element-badge');
+            elBadge.className = `element-badge elem-${combat.enemy.element}`;
+            elBadge.innerText = combat.enemy.element;
+
+            document.getElementById('enemy-level').innerText = combat.enemy.level + (ng * 10);
+            
+            const spriteDiv = document.getElementById('enemy-sprite');
+            spriteDiv.className = `w-32 h-32 md:w-40 md:h-40 bg-gray-800 rounded-xl flex items-center justify-center text-6xl border-4 border-gray-700 shadow-2xl mb-8 relative transition-transform duration-100 ${combat.enemy.color}`;
+            
+            if (combat.isBoss) {
+                spriteDiv.classList.add('boss-frame');
+                document.getElementById('boss-badge').classList.remove('hidden');
+                document.getElementById('enemy-hp-container').classList.add('ring-2', 'ring-red-600');
+            } else {
+                document.getElementById('boss-badge').classList.add('hidden');
+                document.getElementById('enemy-hp-container').classList.remove('ring-2', 'ring-red-600');
+            }
+
+            let iconHtml = '';
+            if (combat.enemy.icon.includes(':')) {
+                iconHtml = `<iconify-icon icon="${combat.enemy.icon}"></iconify-icon>`;
+            } else if (combat.enemy.icon.includes('ra-')) {
+                iconHtml = `<i class="ra ${combat.enemy.icon}"></i>`;
+            } else {
+                iconHtml = `<i class="fa-solid ${combat.enemy.icon}"></i>`;
+            }
+            spriteDiv.innerHTML = iconHtml;
+
+            updateCombatUI();
+            updateZoneProgressUI();
+        }
+
+        function gainXp(rewards) {
+            let gainStrings = [];
+            
+            for (let attr in rewards) {
+                if (state.attributes[attr]) {
+                    let amount = Math.floor(rewards[attr] * calculatedStats.xpMult);
+                    let pct = (amount / state.attributes[attr].maxXp) * 100;
+                    gainStrings.push(`<span class="${ATTRIBUTES[attr].color}">${ATTRIBUTES[attr].name} +${formatNumber(amount)}</span>`);
+
+                    state.attributes[attr].xp += amount;
+                    while (state.attributes[attr].xp >= state.attributes[attr].maxXp) {
+                        levelUp(attr);
+                    }
+                }
+            }
+            
+            if (gainStrings.length > 0) {
+                if(combat.isBoss) {
+                     log(`BOSS DEFEATED: ${gainStrings.join(", ")}`, "text-yellow-400 font-bold");
+                } else {
+                     log(`${combat.enemy.name} defeated: ${gainStrings.join(", ")}`);
+                }
+            }
+            updateAttributeUI();
+        }
+
+        function levelUp(attr) {
+            state.attributes[attr].xp -= state.attributes[attr].maxXp;
+            state.attributes[attr].level++;
+            state.attributes[attr].maxXp = getXpReq(state.attributes[attr].level);
+            state.attributes[attr].sp++;
+            
+            log(`LEVEL UP! ${ATTRIBUTES[attr].name} -> ${state.attributes[attr].level}`, ATTRIBUTES[attr].color);
+            calculateStats();
+            
+            if(currentOpenTree === attr) renderSkillTree(attr);
+        }
+
+        function getDynamicSkillDesc(skill, currentLevel) {
+            const lvl = Math.max(1, currentLevel);
+            
+            // Helper: Value Formatting
+            const fVal = (v) => Number.isInteger(v) ? v : (v).toFixed(2).replace(/\.00$/, '');
+            const fPct = (v) => Math.round(v * 100);
+            
+            let descCurrent = "";
+            let descNext = "";
+
+            // --- PASSIVE SKILLS ---
+            if (skill.type === 'passive') {
+                if (skill.effect.dpsPct) {
+                    let totalPct = skill.effect.dpsPct * lvl;
+                    let nextPct = skill.effect.dpsPct * (lvl+1);
+                    let currentDmg = Math.floor(calculatedStats.damage * totalPct);
+                    let nextDmgRaw = Math.floor(calculatedStats.damage * nextPct);
+                    descCurrent = `Deals ${fPct(totalPct)}% DPS (${formatNumber(currentDmg)} Dmg/s)`;
+                    descNext = `Deals ${fPct(nextPct)}% DPS (${formatNumber(nextDmgRaw)} Dmg/s)`;
+                }
+                else if (skill.effect.damage) {
+                    descCurrent = `+${fVal(skill.effect.damage * lvl)} Base Damage`;
+                    descNext = `+${fVal(skill.effect.damage * (lvl+1))} (+${skill.effect.damage})`;
+                }
+                else if (skill.effect.hp) {
+                    descCurrent = `+${fVal(skill.effect.hp * lvl)} Max HP`;
+                    descNext = `+${fVal(skill.effect.hp * (lvl+1))} (+${skill.effect.hp})`;
+                }
+                else if (skill.effect.defense) {
+                    descCurrent = `+${fVal(skill.effect.defense * lvl)} Base Defense`;
+                    descNext = `+${fVal(skill.effect.defense * (lvl+1))} (+${skill.effect.defense})`;
+                }
+                else if (skill.effect.damageMult) {
+                    descCurrent = `+${fPct(skill.effect.damageMult * lvl)}% Damage`;
+                    descNext = `+${fPct(skill.effect.damageMult * (lvl+1))}% (+${fPct(skill.effect.damageMult)}%)`;
+                }
+                else if (skill.effect.hpMult) {
+                    descCurrent = `+${fPct(skill.effect.hpMult * lvl)}% Max HP`;
+                    descNext = `+${fPct(skill.effect.hpMult * (lvl+1))}% (+${fPct(skill.effect.hpMult)}%)`;
+                }
+                else if (skill.effect.speed) {
+                    let curSpeed = (1 - Math.pow(1 - skill.effect.speed, lvl)) * 100;
+                    let nextSpeed = (1 - Math.pow(1 - skill.effect.speed, lvl+1)) * 100;
+                    descCurrent = `-${curSpeed.toFixed(1)}% Attack Time`;
+                    descNext = `-${nextSpeed.toFixed(1)}%`;
+                }
+                else if (skill.effect.critChance) {
+                    descCurrent = `+${fPct(skill.effect.critChance * lvl)}% Crit Chance`;
+                    descNext = `+${fPct(skill.effect.critChance * (lvl+1))}% (+${fPct(skill.effect.critChance)}%)`;
+                }
+                else if (skill.effect.critDmg) {
+                    descCurrent = `+${fPct(skill.effect.critDmg * lvl)}% Crit Damage`;
+                    descNext = `+${fPct(skill.effect.critDmg * (lvl+1))}% (+${fPct(skill.effect.critDmg)}%)`;
+                }
+                else if (skill.effect.lifeOnHit) {
+                    descCurrent = `+${fVal(skill.effect.lifeOnHit * lvl)} Life On Hit`;
+                    descNext = `+${fVal(skill.effect.lifeOnHit * (lvl+1))} (+${skill.effect.lifeOnHit})`;
+                }
+                else if (skill.effect.dodge) {
+                    descCurrent = `+${(skill.effect.dodge * lvl * 100).toFixed(1)}% Dodge Chance`;
+                    descNext = `+${(skill.effect.dodge * (lvl+1) * 100).toFixed(1)}% (+${(skill.effect.dodge * 100).toFixed(1)}%)`;
+                }
+                else if (skill.effect.xpMult) {
+                    descCurrent = `+${fPct(skill.effect.xpMult * lvl)}% XP Gain`;
+                    descNext = `+${fPct(skill.effect.xpMult * (lvl+1))}% (+${fPct(skill.effect.xpMult)}%)`;
+                }
+                else if (skill.effect.regenPct) {
+                    descCurrent = `+${(skill.effect.regenPct * lvl * 100).toFixed(1)}% HP Regen/sec`;
+                    descNext = `+${(skill.effect.regenPct * (lvl+1) * 100).toFixed(1)}% (+${(skill.effect.regenPct * 100).toFixed(1)}%)`;
+                }
+                else if (skill.effect.cdr) {
+                    descCurrent = `+${fPct(skill.effect.cdr * lvl)}% Cooldown Reduction`;
+                    descNext = `+${fPct(skill.effect.cdr * (lvl+1))}% (+${fPct(skill.effect.cdr)}%)`;
+                }
+                else if (skill.effect.autocastSlots) {
+                    descCurrent = `+${skill.effect.autocastSlots * lvl} Autocast Slot(s)`;
+                    descNext = `+${skill.effect.autocastSlots * (lvl+1)} (+${skill.effect.autocastSlots})`;
+                }
+                else if (skill.effect.thorns) {
+                    descCurrent = `Reflect ${fPct(skill.effect.thorns * lvl)}% Damage`;
+                    descNext = `Reflect ${fPct(skill.effect.thorns * (lvl+1))}% (+${fPct(skill.effect.thorns)}%)`;
+                }
+                else if (skill.effect.activeDmgBonus) {
+                    descCurrent = `Add ${fPct(skill.effect.activeDmgBonus * lvl)}% Atk Dmg to Skills`;
+                    descNext = `Add ${fPct(skill.effect.activeDmgBonus * (lvl+1))}% (+${fPct(skill.effect.activeDmgBonus)}%)`;
+                }
+                else if (skill.effect.buffDurationMult) {
+                    descCurrent = `+${fPct(skill.effect.buffDurationMult * lvl)}% Buff Duration`;
+                    descNext = `+${fPct(skill.effect.buffDurationMult * (lvl+1))}% (+${fPct(skill.effect.buffDurationMult)}%)`;
+                }
+                else {
+                    return skill.desc;
+                }
+            }
+
+            // --- ACTIVE SKILLS ---
+            else if (skill.type === 'active') {
+                const getVal = (l) => {
+                    let base = skill.base || 0;
+                    
+                    if (skill.scale && skill.scale.damageMult) {
+                        return { type: '% Dmg', val: Math.round((base + ((l-1) * skill.scale.damageMult)) * 100) };
+                    }
+                    if (skill.scale && skill.scale.duration) {
+                         return { type: 's Duration', val: ((base + ((l-1) * skill.scale.duration)) / 1000).toFixed(1) };
+                    }
+                    if (skill.scale && skill.scale.reduction) { // FIXED TIME WARP
+                         return { type: 's', val: ((base + ((l-1) * skill.scale.reduction)) / 1000).toFixed(1) };
+                    }
+                    if (skill.scale && skill.scale.hits) {
+                        let hits = Math.floor(base + ((l-1) * skill.scale.hits));
+                        return { type: ' Hits', val: hits };
+                    }
+                    if (skill.scale && skill.scale.defMult) {
+                        return { type: 'x Def Dmg', val: (base + ((l-1) * skill.scale.defMult)).toFixed(1) };
+                    }
+                    if (skill.scale && skill.scale.drainPct) {
+                         return { type: '% HP Drain', val: Math.round((base + ((l-1) * skill.scale.drainPct)) * 100) };
+                    }
+                    if (skill.scale && skill.scale.healPct) {
+                        return { type: '% Heal', val: Math.round((base + ((l-1) * skill.scale.healPct)) * 100) };
+                    }
+                    if (skill.scale && skill.scale.intScale) {
+                        let scaleFactor = 5 + ((l-1) * skill.scale.intScale);
+                        return { type: ' + (INT x Scale)', val: scaleFactor };
+                    }
+                    return { type: '', val: 0 };
+                };
+
+                const cur = getVal(lvl);
+                const nxt = getVal(lvl+1);
+
+                // Default Description
+                descCurrent = `Effect: ${cur.val}${cur.type}`;
+                descNext = `Next: ${nxt.val}${cur.type}`;
+                
+                // --- SPECIAL DESCRIPTION OVERRIDES ---
+
+                // Time Warp (Fix)
+                if (skill.id === 'i4') {
+                    descCurrent = `Effect: Reduce all cooldowns by ${cur.val}s`;
+                    descNext = `Next: Reduce by ${nxt.val}s`;
+                }
+
+                // Buffs
+                else if (skill.id === 's4') descCurrent = `Effect: +50% Damage for ${cur.val}s`;
+                else if (skill.id === 'e4') descCurrent = `Effect: -50% Dmg Taken for ${cur.val}s`;
+                else if (skill.id === 'e6') descCurrent = `Effect: Invulnerable for ${cur.val}s`;
+                else if (skill.id === 'd4') descCurrent = `Effect: 2x Atk & CD Speed for ${cur.val}s`;
+                else if (skill.id === 'a4') descCurrent = `Effect: 2x Attack Speed for ${cur.val}s`;
+                else if (skill.id === 'h4') descCurrent = `Effect: Heal + 20% Dmg for 10s`; 
+                else if (skill.id === 'da4') descCurrent = `Effect: +50% Dmg Taken for ${cur.val}s`; 
+                else if (skill.id === 'da6') descCurrent = `Effect: Enemy hits self for ${cur.val}s`; 
+                else if (skill.id === 'p4' || skill.id === 'w4') descCurrent = `Effect: Slow Atk Speed for ${cur.val}s`;
+                else if (skill.id === 'i6') { // Mind Blast
+                    // Mind Blast base damage is static (3.5), duration scales
+                    descCurrent = `Effect: Deals 350% Dmg & Stuns for ${cur.val}s`;
+                    descNext = `Next: Stun for ${nxt.val}s`;
+                }
+                else if (skill.id === 'ea6') { // Earthquake
+                    // Earthquake: damage scales, stun static (1s)
+                    descCurrent = `Effect: Deals ${cur.val}% Dmg & Stuns for 1.0s`;
+                    descNext = `Next: Deals ${nxt.val}% Dmg`;
+                }
+                else if (skill.id === 'a6') { // Tornado
+                     descCurrent = `Effect: Deals ${cur.val}% Dmg & Stuns for 1.0s`;
+                     descNext = `Next: Deals ${nxt.val}% Dmg`;
+                }
+                else if (skill.id === 'ic6') { // Blizzard (DOT)
+                     // Base 1.0 + 0.2 per level.
+                     let dotVal = Math.round((1.0 + ((lvl-1) * 0.2)) * 100);
+                     let dotNext = Math.round((1.0 + (lvl * 0.2)) * 100);
+                     descCurrent = `Effect: Deals ${dotVal}% Dmg over 5s`;
+                     descNext = `Next: Deals ${dotNext}% Dmg`;
+                }
+                else if (skill.id === 'w6') { // Tsunami
+                    descCurrent = `Effect: Deals ${cur.val}% Dmg & Soaks enemy`;
+                }
+                else if (skill.id === 'f4') { // Ignite
+                    descCurrent = `Effect: Burns for ${skill.base + state.attributes.fire.level + ((lvl-1)*3)} Dmg/s`;
+                    descNext = `Next: Burns for ${skill.base + state.attributes.fire.level + (lvl*3)} Dmg/s`;
+                }
+               
+                else if (skill.id === 'ea4' || skill.id === 'ic4' || skill.id === 'l4') {
+                     descCurrent = `Effect: Deal 120% Dmg & Stun for ${cur.val}s`;
+                     descNext = `Next: Stun for ${nxt.val}s`;
+                }
+                if (nxt.val == cur.val && skill.id !== 'i4') {
+                }
+            }
+
+            if(!descCurrent) return skill.desc;
+
+            return `
+                <div class="text-gray-300 font-bold text-xs">${descCurrent}</div>
+                <div class="text-[10px] text-green-400/80 mt-0.5">${descNext}</div>
+            `;
+        }
+
+        // --- COMBAT LOOP ---
+
+        let lastTime = 0;
+        function gameLoop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            const delta = timestamp - lastTime;
+            lastTime = timestamp;
+
+            if (isNaN(delta)) {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            if (isPaused) {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            if (!combat.enemy) spawnEnemy();
+
+            // --- CHECK BUFFS ---
+            const hasDoubleStrike = combat.buffs.find(b => b.id === 'doubleStrike');
+            
+            // If Double Strike is active, time moves 2x faster for Attack Timer and Cooldowns
+            const speedMultiplier = hasDoubleStrike ? 2 : 1;
+
+            // REGEN
+            if (calculatedStats.regenPct > 0 && combat.playerHp > 0 && combat.playerHp < combat.playerMaxHp) {
+                combat.regenTimer += delta;
+                if(combat.regenTimer >= 1000) {
+                    let ticks = Math.floor(combat.regenTimer / 1000);
+                    combat.regenTimer -= ticks * 1000;
+                    let amt = Math.floor(calculatedStats.hp * calculatedStats.regenPct) * ticks;
+                    if(amt < 1) amt = 1;
+                    healPlayer(amt);
+                }
+            }
+
+            // GIMMICK UPDATES (Periodic)
+            if (combat.isBoss && combat.currentGimmick) {
+                combat.gimmickTimer += delta;
+
+                if (combat.currentGimmick === 'magma_aura') {
+                    if (combat.gimmickTimer >= 1000) {
+                        combat.gimmickTimer = 0;
+                        let burnDmg = (state.currentZone + 1) * 5; 
+                        combat.playerHp -= burnDmg;
+                        spawnDamageText(burnDmg, 'player-hp-bar', false, true, "text-orange-500");
+                        if(combat.playerHp <= 0) enemyAttack();
+                        updateCombatUI();
+                    }
+                }
+
+                if (combat.currentGimmick === 'divine_shield') {
+                    if (combat.gimmickTimer >= 6000) {
+                        combat.gimmickTimer = 0;
+                        combat.gimmickStacks = 1;
+                        spawnFloatingText("DIVINE SHIELD", 'enemy-sprite', 'text-yellow-200');
+                        document.getElementById('enemy-status').innerHTML = '<i class="fa-solid fa-shield text-yellow-200 text-2xl"></i>';
+                    }
+                }
+
+                if (combat.currentGimmick === 'entropy') {
+                    if (combat.gimmickTimer >= 3000) {
+                        combat.gimmickTimer = 0;
+                        combat.gimmickStacks++;
+                        spawnFloatingText(`Entropy x${combat.gimmickStacks}`, 'player-hp-bar', 'text-purple-500');
+                    }
+                }
+            }
+
+            // Player Attack Timer
+            let currentAtkSpeed = calculatedStats.attackSpeed;
+            if (combat.buffs.find(b => b.id === 'galeBuff')) currentAtkSpeed = currentAtkSpeed / 2;
+            if (combat.buffs.find(b => b.id === 'webSlow')) currentAtkSpeed = currentAtkSpeed * 2.0;
+            if (combat.currentGimmick === 'frozen_heart') currentAtkSpeed = currentAtkSpeed * 1.3;
+
+            let attackInterval = currentAtkSpeed * 1000;
+            
+            // APPLY SPEED MULTIPLIER HERE
+            combat.attackTimer = Math.min(combat.attackTimer + (delta * speedMultiplier), attackInterval);
+            
+            const btn = document.getElementById('main-attack-btn');
+            const btnOverlay = document.getElementById('btn-cooldown-overlay');
+            const isReady = combat.attackTimer >= attackInterval;
+            
+            if (isReady) {
+                if (btn.disabled) {
+                    btn.disabled = false;
+                    btn.classList.add('btn-ready');
+                    btn.classList.remove('opacity-70', 'cursor-not-allowed');
+                }
+                btnOverlay.style.transform = 'scaleX(0)';
+            } else {
+                if (!btn.disabled) {
+                    btn.disabled = true;
+                    btn.classList.remove('btn-ready');
+                    btn.classList.add('opacity-70', 'cursor-not-allowed');
+                }
+                let pct = 1 - (combat.attackTimer / attackInterval);
+                btnOverlay.style.transform = `scaleX(${pct})`;
+            }
+
+            let barWidth = Math.min(100, (combat.attackTimer / attackInterval) * 100);
+            document.getElementById('attack-timer-bar').style.width = `${barWidth}%`;
+
+            // DPS Passive Logic (Lacerate)
+            if (calculatedStats.dpsPct > 0) {
+                combat.dpsTimer += delta;
+                if (combat.dpsTimer >= 1000) {
+                    let ticks = Math.floor(combat.dpsTimer / 1000);
+                    combat.dpsTimer -= ticks * 1000;
+                    
+                    let dpsDmg = Math.floor(calculatedStats.damage * calculatedStats.dpsPct) * ticks;
+                    // Ensure minimum 1 damage if skill is active
+                    if (dpsDmg < 1) dpsDmg = 1;
+                    
+                    if (combat.currentGimmick === 'divine_shield' && combat.gimmickStacks > 0) {
+                         dpsDmg = 0; 
+                    }
+
+                    if (dpsDmg > 0) {
+                        applyDamageToEnemy(dpsDmg, false, 'text-red-400', 'physical');
+                    }
+                }
+            }
+            
+            const blizzard = activeEffects.find(e => e.type === 'blizzard');
+
+            // Enemy AI
+            if (combat.isStunned) {
+                combat.stunTimer -= delta;
+                if(combat.stunTimer <= 0) {
+                    combat.isStunned = false;
+                    document.getElementById('enemy-status').innerHTML = '';
+                }
+            } else {
+                combat.enemyAttackTimer += delta;
+                const enemySpeed = combat.isBoss ? 2000 : 2500;
+                
+                if (combat.enemyAttackTimer >= enemySpeed) {
+                    let attacks = Math.floor(combat.enemyAttackTimer / enemySpeed);
+                    if(attacks > 5) attacks = 5; 
+                    combat.enemyAttackTimer %= enemySpeed; 
+                    for(let i=0; i<attacks; i++) {
+                         if(combat.playerHp > 0) enemyAttack();
+                    }
+                }
+            }
+
+            // Cooldowns
+            let skillsUpdated = false;
+            for (let id in state.cooldowns) {
+                if (state.cooldowns[id] > 0) {
+                    // APPLY SPEED MULTIPLIER HERE FOR COOLDOWNS
+                    state.cooldowns[id] -= (delta * speedMultiplier);
+                    skillsUpdated = true;
+                }
+                
+                if (state.autocastPreferences && state.autocastPreferences[id]) {
+                    if ((state.cooldowns[id] || 0) <= 0) {
+                        castActive(id, true);
+                    }
+                }
+            }
+            if(skillsUpdated) updateActiveSkillTimers();
+
+            // Buffs
+            let buffsChanged = false;
+            combat.buffs = combat.buffs.filter(b => {
+                b.duration -= delta;
+                buffsChanged = true;
+                return b.duration > 0;
+            });
+            if(buffsChanged) updateBuffIcons();
+
+            // Active Effects (DOTs)
+            activeEffects = activeEffects.filter(e => {
+                e.timer -= delta;
+                e.tickTimer += delta;
+                
+                if (e.tickTimer >= 1000) {
+                    let ticks = Math.floor(e.tickTimer / 1000);
+                    e.tickTimer -= ticks * 1000;
+                    for(let i=0; i<ticks; i++) {
+                         if(e.type === 'burn') applyDot(e);
+                         if(e.type === 'blizzard') {
+                             applyDamageToEnemy(e.amount, false, 'text-cyan-200', 'ice');
+                         }
+                    }
+                }
+                
+                if (e.type === 'doom' && e.timer <= 0) {
+                     let ddmg = e.amount;
+                     applyDamageToEnemy(ddmg, true, 'text-purple-800', 'darkness');
+                     return false; 
+                }
+
+                return e.timer > 0;
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function clickAttack() {
+            if(isPaused) return;
+            let currentAtkSpeed = calculatedStats.attackSpeed;
+            if (combat.buffs.find(b => b.id === 'galeBuff')) currentAtkSpeed = currentAtkSpeed / 2;
+            if (combat.buffs.find(b => b.id === 'webSlow')) currentAtkSpeed = currentAtkSpeed * 2.0;
+            if (combat.currentGimmick === 'frozen_heart') currentAtkSpeed = currentAtkSpeed * 1.3;
+
+            const attackInterval = currentAtkSpeed * 1000;
+
+            if (combat.attackTimer >= attackInterval) {
+                combat.attackTimer = 0;
+                playerAttack();
+                
+                const btn = document.getElementById('main-attack-btn');
+                btn.classList.add('scale-95');
+                setTimeout(() => btn.classList.remove('scale-95'), 100);
+            }
+        }
+
+        // Updated Helper: Apply Stun
+        function applyStun(duration) {
+            combat.isStunned = true;
+            combat.stunTimer = Math.max(combat.stunTimer, duration);
+            document.getElementById('enemy-status').innerHTML = '<i class="fa-solid fa-star-half-stroke text-yellow-400 animate-spin text-2xl"></i>';
+        }
+
+        function applyDamageToEnemy(amount, isCrit, colorClass, element = 'physical') {
+            if(amount <= 0) return 0;
+            
+            if (combat.currentGimmick === 'divine_shield' && combat.gimmickStacks > 0) {
+                spawnFloatingText("BLOCKED", 'enemy-sprite', 'text-white');
+                combat.gimmickStacks = 0; 
+                document.getElementById('enemy-status').innerHTML = '';
+                return 0;
+            }
+
+            if (combat.buffs.find(b => b.id === 'curse')) {
+                amount = Math.floor(amount * 1.5);
+            }
+
+            const enemyElem = combat.enemy.element || 'physical';
+            let multiplier = 1.0;
+            let effectivenessText = "";
+            let effectivenessColor = "";
+
+            if (element !== 'physical' && enemyElem !== 'physical') {
+                const chart = ELEMENTAL_CHART[element];
+                if (chart) {
+                    // Check Strong
+                    if (chart.strong === enemyElem || (Array.isArray(chart.strong) && chart.strong.includes(enemyElem))) {
+                        const elementLevel = state.attributes[element] ? state.attributes[element].level : 1;
+                        multiplier = 1.5 + ((elementLevel - 1) * 0.10);
+                        effectivenessText = "CRUSH!";
+                        effectivenessColor = "text-yellow-400";
+                    } 
+                    // Check Weak
+                    else if (chart.weak === enemyElem || (Array.isArray(chart.weak) && chart.weak.includes(enemyElem))) {
+                        multiplier = 0.5;
+                        effectivenessText = "Resist";
+                        effectivenessColor = "text-gray-500";
+                    }
+                }
+            }
+
+            for(let attr in state.attributes) {
+                const attrLvl = state.attributes[attr].level;
+                if(attrLvl > 1) {
+                    const chart = ELEMENTAL_CHART[attr];
+                    if(chart && (chart.strong === enemyElem || (Array.isArray(chart.strong) && chart.strong.includes(enemyElem)))) {
+                        multiplier += (attrLvl * 0.05);
+                    }
+                }
+            }
+
+            if ((element === 'holy' && enemyElem === 'darkness') || (element === 'darkness' && enemyElem === 'holy')) {
+                multiplier = 2.0;
+                effectivenessText = "PURGE!";
+                effectivenessColor = "text-yellow-100";
+            }
+
+            amount = Math.floor(amount * multiplier);
+
+            if (multiplier > 1.2) {
+                spawnFloatingText(effectivenessText, 'enemy-sprite', effectivenessColor);
+            } else if (multiplier < 0.8) {
+                spawnFloatingText(effectivenessText, 'enemy-sprite', effectivenessColor);
+            }
+
+            // Reactions
+            const existingBurn = activeEffects.find(e => e.type === 'burn');
+            
+            if (element === 'water' && existingBurn) {
+                amount = Math.floor(amount * 2.0);
+                spawnFloatingText("VAPORIZE!", 'enemy-sprite', 'reaction-text text-cyan-200');
+                activeEffects = activeEffects.filter(e => e.type !== 'burn');
+            } else if (element === 'air' && combat.buffs.find(b => b.id === 'enemyWet')) {
+                // Old air reaction kept for compatibility, Lightning is better
+                spawnFloatingText("SWIRL!", 'enemy-sprite', 'reaction-text text-slate-200');
+            } else if (element === 'lightning' && combat.buffs.find(b => b.id === 'enemyWet')) {
+                spawnFloatingText("ELECTRO!", 'enemy-sprite', 'reaction-text text-yellow-200');
+                applyStun(1500); 
+                amount = Math.floor(amount * 1.5);
+            } else if (element === 'earth' && combat.buffs.find(b => b.id === 'enemyWet')) {
+                spawnFloatingText("PETRIFY!", 'enemy-sprite', 'reaction-text text-amber-700');
+                amount = Math.floor(amount * 1.8);
+            } else if (element === 'ice' && combat.buffs.find(b => b.id === 'enemyWet')) {
+                spawnFloatingText("FROZEN!", 'enemy-sprite', 'reaction-text text-blue-200');
+                applyStun(2000);
+            } else if (element === 'fire' && combat.enemy.element === 'plant') {
+                // Bonus for burning plants
+                amount = Math.floor(amount * 1.2);
+                spawnFloatingText("WILDFIRE!", 'enemy-sprite', 'reaction-text text-orange-600');
+            }
+
+            if (state.artifacts && state.artifacts.includes(combat.enemy.name)) {
+                amount = Math.floor(amount * 1.25);
+            }
+
+            combat.enemyHp -= amount;
+            spawnDamageText(amount, 'enemy-sprite', isCrit, false, colorClass);
+
+            checkEnemyDeath(element);
+            updateCombatUI();
+            
+            return amount; 
+        }
+
+        function playerAttack() {
+            let isCrit = Math.random() < calculatedStats.critChance;
+            let dmg = calculatedStats.damage;
+            
+            if (combat.buffs.find(b => b.id === 'warCry')) dmg *= 1.5;
+            if (combat.buffs.find(b => b.id === 'blessing')) dmg *= 1.2;
+
+            let vpIndex = combat.buffs.findIndex(b => b.id === 'vitalPoint');
+            if (vpIndex !== -1) {
+                isCrit = true;
+                dmg *= 2.0; 
+                combat.buffs.splice(vpIndex, 1);
+            }
+
+            if (isCrit) dmg *= calculatedStats.critDmg;
+            dmg = dmg * (0.9 + Math.random() * 0.2);
+
+            if (combat.currentGimmick === 'crystal_shell') {
+                dmg *= 0.2; 
+            }
+
+            dmg = Math.floor(dmg);
+
+            applyDamageToEnemy(dmg, isCrit, null, 'physical');
+
+            if (combat.currentGimmick === 'static_shock') {
+                let reflect = Math.floor(dmg * 0.1);
+                if (reflect > 0) {
+                    combat.playerHp -= reflect;
+                    spawnDamageText(reflect, 'player-hp-bar', false, true, "text-yellow-200");
+                }
+            }
+
+            if (calculatedStats.lifeOnHit > 0) {
+                healPlayer(calculatedStats.lifeOnHit);
+            }
+
+            const sprite = document.getElementById('enemy-sprite');
+            sprite.classList.add('shake');
+            setTimeout(() => sprite.classList.remove('shake'), 300);
+
+            updateCombatUI();
+        }
+
+        function enemyAttack() {
+            if (combat.buffs.find(b => b.id === 'immortality')) {
+                spawnFloatingText("IMMUNE", 'player-hp-bar', 'text-green-300');
+                return;
+            }
+
+            if (combat.buffs.find(b => b.id === 'confusion')) {
+                let selfDmg = combat.enemy.dmg;
+                applyDamageToEnemy(selfDmg, false, 'text-purple-400', 'darkness');
+                spawnFloatingText("CONFUSED!", 'enemy-sprite', 'text-purple-400');
+                return;
+            }
+
+            if (Math.random() < calculatedStats.dodge) {
+                spawnFloatingText("Dodge!", 'player-hp-bar', 'text-blue-400');
+                return;
+            }
+
+            if (calculatedStats.thorns > 0) {
+                let thornsDmg = Math.floor(combat.enemy.dmg * calculatedStats.thorns);
+                if (thornsDmg > 0) {
+                    applyDamageToEnemy(thornsDmg, false, 'text-amber-600', 'earth');
+                    spawnFloatingText("Thorns!", 'enemy-sprite', 'text-amber-600');
+                }
+            }
+
+            let numAttacks = 1;
+            let dmgMult = 1.0;
+
+            if (combat.currentGimmick === 'triple_threat') {
+                numAttacks = 3;
+                dmgMult = 0.4;
+            }
+
+            for (let i = 0; i < numAttacks; i++) {
+                let rawDmg = combat.enemy.dmg * dmgMult;
+                const defStance = combat.buffs.find(b => b.id === 'defensiveStance');
+                if (defStance) rawDmg *= 0.5;
+
+                let dmg = rawDmg - calculatedStats.defense;
+                if (combat.buffs.find(b => b.id === 'harden')) dmg -= 100;
+                
+                if (dmg < 1) dmg = 1;
+
+                if (combat.currentGimmick === 'entropy') {
+                    let amp = 1 + (combat.gimmickStacks * 0.2);
+                    dmg = Math.floor(dmg * amp);
+                }
+                
+                combat.playerHp -= dmg;
+                spawnDamageText(Math.floor(dmg), 'player-hp-bar', false, true);
+
+                if (combat.currentGimmick === 'blood_thirst') {
+                    let heal = dmg;
+                    combat.enemyHp = Math.min(combat.enemyMaxHp, combat.enemyHp + heal);
+                    spawnFloatingText(`+${formatNumber(heal)}`, 'enemy-hp-bar', 'text-green-500');
+                }
+                
+                if (combat.currentGimmick === 'web_spray') {
+                    if (Math.random() < 0.3) { 
+                        combat.buffs.push({ id: 'webSlow', duration: 3000 });
+                        spawnFloatingText("WEBBED!", 'player-hp-bar', 'text-gray-400');
+                    }
+                }
+            }
+            
+            const area = document.getElementById('battle-area');
+            area.classList.remove('shake');
+            void area.offsetWidth; 
+            area.classList.add('shake');
+
+            if (combat.playerHp <= 0) {
+                log("You were defeated!", "text-red-500 font-bold");
+                combat.playerHp = combat.playerMaxHp;
+                
+                activeEffects = [];
+                combat.buffs = [];
+                updateBuffIcons();
+                
+                state.zoneKills = 0;
+                log("Zone progress lost. Retreating...", "text-orange-400");
+                updateZoneProgressUI();
+                spawnEnemy();
+            }
+            updateCombatUI();
+        }
+
+        function applyDot(effect) {
+            if (effect.type === 'burn') {
+                let dmg = effect.amount;
+                applyDamageToEnemy(dmg, false, "text-orange-500", 'fire');
+            }
+        }
+
+        // --- ARTIFACT LOGIC ---
+
+        function checkArtifactDrop(enemyName, killingElement) {
+            if (!state.artifacts) state.artifacts = [];
+            if (state.artifacts.includes(enemyName)) return;
+
+            const artifact = ARTIFACT_DATA[enemyName];
+            if (!artifact) return;
+
+            // Drop Rates
+            let chance = 0.001;
+    
+            // Check Weakness Bonus
+            const enemyData = combat.enemy; 
+            const chart = ELEMENTAL_CHART[killingElement];
+            let isWeakness = false;
+            if (chart && (chart.strong === enemyData.element || (Array.isArray(chart.strong) && chart.strong.includes(enemyData.element)))) {
+                isWeakness = true;
+            }
+
+            if (isWeakness) chance = 0.005;
+
+            if (Math.random() < chance) {
+                state.artifacts.push(enemyName);
+                spawnFloatingText("ARTIFACT FOUND!", 'enemy-sprite', 'text-amber-400 font-bold text-lg');
+                
+                log(`${enemyName} dropped ${artifact.name}!`, "text-amber-300 font-bold text-lg border-2 border-amber-500/50 p-2 bg-amber-900/30 text-center my-2 rounded");
+        
+                saveGame();
+            }
+        }
+
+        function openArtifactModal() {
+            const modal = document.getElementById('artifact-modal');
+            const content = document.getElementById('artifact-modal-content');
+    
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+
+            renderArtifacts();
+        }
+
+        function closeArtifactModal() {
+            const modal = document.getElementById('artifact-modal');
+            const content = document.getElementById('artifact-modal-content');
+    
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            modal.classList.add('opacity-0');
+
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function renderArtifacts() {
+            const container = document.getElementById('artifact-grid');
+            container.innerHTML = '';
+    
+            const allArtifacts = ARTIFACT_DATA;
+            const collected = state.artifacts || [];
+
+            for (let monsterName in allArtifacts) {
+                const item = allArtifacts[monsterName];
+                const isOwned = collected.includes(monsterName);
+        
+                const el = document.createElement('div');
+                const bgClass = isOwned ? 'bg-gray-800 border-amber-600' : 'bg-gray-900 border-gray-800 opacity-50 grayscale';
+                const textClass = isOwned ? 'text-amber-500' : 'text-gray-600';
+                const iconColor = isOwned ? 'text-white' : 'text-gray-700';
+        
+                el.className = `p-3 rounded border-2 flex flex-col items-center text-center transition-all ${bgClass}`;
+        
+                // Updated Spacing: mt-1 instead of mt-2, pt-2 instead of pt-1, leading-tight
+                el.innerHTML = `
+                    <div class="text-3xl mb-2 ${iconColor}">
+                        <iconify-icon icon="${item.icon}"></iconify-icon>
+                    </div>
+                    <div class="font-bold text-xs ${textClass} mb-1">${item.name}</div>
+                    <div class="text-[10px] text-gray-500 italic">${isOwned ? item.desc : '???'}</div>
+                    <div class="text-[10px] mt-1 pt-2 uppercase font-bold text-gray-600 border-t border-gray-700 w-full leading-tight">
+                        ${isOwned ? '+25% DMG & +50% XP<br>vs ' + monsterName : 'Locked'}
+                    </div>
+                `;
+                container.appendChild(el);
+            }
+        }
+
+
+        function checkEnemyDeath(killingElement) {
+            if (combat.enemyHp <= 0) {
+                combat.enemyHp = 0;
+                checkArtifactDrop(combat.enemy.name, killingElement);
+                
+                // --- ARTIFACT BONUS LOGIC START ---
+                let rewards = JSON.parse(JSON.stringify(combat.enemy.xp));
+                if (state.artifacts && state.artifacts.includes(combat.enemy.name)) {
+                    for(let k in rewards) {
+                        rewards[k] = Math.floor(rewards[k] * 1.5);
+                    }
+                }
+                gainXp(rewards);
+                // --- ARTIFACT BONUS LOGIC END ---
+                
+                if (combat.isBoss) {
+                    if(state.currentZone === ZONES.length - 1) {
+                        spawnFloatingText("REALITY BROKEN!", 'zone-name', 'text-purple-400');
+                        log("THE VOID GOD HAS FALLEN!", "text-purple-400 font-bold text-lg");
+                        setTimeout(openNgModal, 1500);
+                    } else {
+                        spawnFloatingText("ZONE UNLOCKED!", 'zone-name', 'text-yellow-400');
+                        log("ZONE CLEARED! Next area unlocked.", "text-green-400 font-bold");
+                        
+                        if (state.currentZone === state.maxUnlockedZone) {
+                             state.maxUnlockedZone++;
+                        }
+                    }
+                    state.zoneKills = 0;
+                } else {
+                    state.zoneKills++;
+                }
+
+                spawnEnemy();
+            }
+        }
+
+        function healPlayer(amount) {
+            if (combat.currentGimmick === 'deep_pressure') {
+                amount = Math.floor(amount * 0.5);
+                if (amount < 1) amount = 0;
+            }
+
+            if (amount <= 0 || combat.playerHp >= combat.playerMaxHp) return;
+
+            combat.playerHp = Math.min(combat.playerMaxHp, combat.playerHp + amount);
+            spawnFloatingText(`+${formatNumber(amount)}`, 'player-hp-bar', 'text-green-400');
+            updateCombatUI();
+        }
+
+        // --- SKILLS ---
+
+        function castActive(skillId, isAutocast = false) {
+            if ((state.cooldowns[skillId] || 0) > 0) return;
+
+            const skillDef = SKILL_LOOKUP[skillId];
+            if(!skillDef) return;
+
+            const attr = skillDef.attr;
+            const skillLevel = state.skillLevels[attr][skillId] || 1; 
+            const elem = skillDef.element || 'physical';
+            const base = skillDef.base || 0;
+
+            let skillDmgMult = 1.0;
+            if (combat.currentGimmick === 'crystal_shell') {
+                skillDmgMult = 3.0; 
+            }
+
+            let used = true;
+
+            const applySkillDmg = (amount, color) => {
+                if (calculatedStats.activeDmgBonus > 0) {
+                    amount += (calculatedStats.damage * calculatedStats.activeDmgBonus);
+                }
+                amount = Math.floor(amount * skillDmgMult);
+                let actualDmg = applyDamageToEnemy(amount, true, color, elem);
+                
+                if (combat.currentGimmick === 'static_shock') {
+                    let reflect = Math.floor(amount * 0.1);
+                    if (reflect > 0) {
+                        combat.playerHp -= reflect;
+                        spawnDamageText(reflect, 'player-hp-bar', false, true, "text-yellow-200");
+                    }
+                }
+                return actualDmg; 
+            };
+
+            const addBuff = (id, baseDur) => {
+                let dur = baseDur;
+                if(skillDef.scale && skillDef.scale.duration) {
+                    dur += (skillDef.scale.duration * (skillLevel - 1));
+                }
+                dur = Math.floor(dur * calculatedStats.buffDurationMult);
+                
+                // Add or Refresh buff
+                const existing = combat.buffs.find(b => b.id === id);
+                if (existing) {
+                    existing.duration = dur;
+                } else {
+                    combat.buffs.push({ id: id, duration: dur });
+                }
+                updateBuffIcons();
+            };
+
+            switch(skillDef.effect) {
+                // --- STRENGTH ---
+                case 'heavyStrike': // Bash
+                    let bashMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * bashMult, "text-red-300");
+                    break;
+                case 'warCry':
+                    addBuff('warCry', base);
+                    spawnFloatingText("WAR CRY!", 'player-hp-bar', 'text-red-500');
+                    break;
+                case 'gigastrike':
+                    let gigaMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * gigaMult, "text-red-600");
+                    break;
+
+                // --- ENDURANCE ---
+                case 'shieldBash':
+                    let sBashMult = base + ((skillLevel-1) * (skillDef.scale.defMult || 0)); // Scale Def Multiplier
+                    let sDmg = (calculatedStats.defense * 4) * sBashMult;
+                    if(sDmg < 10) sDmg = 10;
+                    applySkillDmg(sDmg, "text-gray-300");
+                    break;
+                case 'defensiveStance':
+                    addBuff('defensiveStance', base);
+                    spawnFloatingText("Shield Up!", 'player-hp-bar', 'text-green-300');
+                    break;
+                case 'immortality':
+                    addBuff('immortality', base);
+                    spawnFloatingText("IMMUNE!", 'player-hp-bar', 'text-green-100');
+                    break;
+
+                // --- DEXTERITY ---
+                case 'quickStab':
+                    let stabMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * stabMult, "text-yellow-200");
+                    break;
+                case 'doubleStrikeBuff':
+                    addBuff('doubleStrike', base);
+                    spawnFloatingText("HASTE!", 'player-hp-bar', 'text-yellow-300'); // Changed text
+                    break;
+                case 'omnislash':
+                    // Omnislash hits scaling: Base 3 + 0.5 per level
+                    let hits = Math.floor(base + ((skillLevel-1) * (skillDef.scale.hits || 0)));
+                    let dmgPerHit = calculatedStats.damage;
+                    applySkillDmg(dmgPerHit * hits, "text-slate-200");
+                    break;
+
+                // --- INTELLIGENCE ---
+                case 'magicBolt':
+                    let intScale = 5 + ((skillLevel-1) * (skillDef.scale.intScale || 0));
+                    let mdmg = base + (state.attributes.intelligence.level * intScale);
+                    applySkillDmg(mdmg, 'text-blue-400');
+                    break;
+                case 'timeWarp':
+                    let reduction = base + ((skillLevel-1) * (skillDef.scale.reduction || 0));
+                    for(let k in state.cooldowns) {
+                        if(state.cooldowns[k] > 0) state.cooldowns[k] = Math.max(0, state.cooldowns[k] - reduction);
+                    }
+                    spawnFloatingText("Time Warp!", 'player-hp-bar', 'text-blue-200');
+                    updateActiveSkillTimers();
+                    break;
+                case 'mindBlast':
+                    applyStun(2000 + ((skillLevel-1) * (skillDef.scale.duration || 0)));
+                    applySkillDmg(calculatedStats.damage * base, "text-purple-300");
+                    break;
+
+                // --- FIRE ---
+                case 'fireball':
+                    let fbMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * fbMult, "text-orange-400");
+                    break;
+                case 'ignite':
+                    let burnAmt = base + state.attributes.fire.level + ((skillLevel-1) * (skillDef.scale.damage || 0));
+                    activeEffects.push({ type: 'burn', amount: burnAmt, timer: 5000, tickTimer: 0 });
+                    spawnFloatingText("BURN!", 'enemy-sprite', 'text-orange-500');
+                    break;
+                case 'explosion': // Meteor
+                    let mMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * mMult, "text-orange-600");
+                    break;
+
+                // --- DARKNESS ---
+                case 'curse':
+                    spawnFloatingText("CURSED!", 'enemy-sprite', 'text-purple-800');
+                    addBuff('curse', base); 
+                    break;
+                case 'drainLife':
+                    let dPct = base + ((skillLevel-1) * (skillDef.scale.drainPct || 0));
+                    let drainBase = Math.floor(calculatedStats.hp * dPct);
+                    let actualDrain = applySkillDmg(drainBase, 'text-purple-500'); 
+                    healPlayer(actualDrain); 
+                    break;
+                case 'confusion':
+                    addBuff('confusion', base);
+                    spawnFloatingText("NIGHTMARE!", 'enemy-sprite', 'text-black font-bold');
+                    break;
+
+                // --- EARTH ---
+                case 'rockThrow':
+                    let rtMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * rtMult, "text-amber-600");
+                    break;
+                case 'stun': // Tremor & Freeze & Paralysis
+                    let stunDur = base + ((skillLevel-1) * (skillDef.scale.duration || 0));
+                    applyStun(stunDur);
+                    applySkillDmg(calculatedStats.damage * 1.2, "text-amber-700");
+                    break;
+                case 'earthquake':
+                    applyStun(1000);
+                    let eqMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * eqMult, "text-amber-800");
+                    break;
+
+                // --- WATER ---
+                case 'waterGun':
+                    let wgMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * wgMult, "text-cyan-400");
+                    break;
+                case 'chill':
+                    addBuff('enemyWet', base);
+                    spawnFloatingText("CHILLED", 'enemy-sprite', 'text-cyan-200');
+                    break;
+                case 'tidalCrash': // Tsunami
+                    let tMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * tMult, "text-cyan-500");
+                    addBuff('enemyWet', 8000);
+                    spawnFloatingText("FLOODED!", 'enemy-sprite', 'text-cyan-600');
+                    break;
+
+                // --- AIR ---
+                case 'gust':
+                    let guMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * guMult, "text-slate-300");
+                    break;
+                case 'galeBuff':
+                    addBuff('galeBuff', base);
+                    spawnFloatingText("Speed Up!", 'player-hp-bar', 'text-slate-300');
+                    break;
+                case 'lightning': // Tornado
+                    applyStun(1000);
+                    let lMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * lMult, "text-yellow-200");
+                    break;
+
+                // --- HOLY ---
+                case 'lightBeam':
+                    let lbMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * lbMult, "text-yellow-100");
+                    break;
+                case 'blessing':
+                    let bHeal = base + ((skillLevel-1) * (skillDef.scale.healPct || 0));
+                    healPlayer(calculatedStats.hp * bHeal);
+                    addBuff('blessing', 10000);
+                    spawnFloatingText("Blessed!", 'player-hp-bar', 'text-yellow-100');
+                    break;
+                case 'smite': // Judgment
+                    let jMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * jMult, "text-yellow-300");
+                    break;
+
+                // --- ICE ---
+                case 'iceShard':
+                    let icMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * icMult, "text-blue-300");
+                    break;
+                case 'blizzard':
+                    let blizDmg = calculatedStats.damage * (base + ((skillLevel-1)*0.2));
+                    activeEffects.push({ type: 'blizzard', amount: blizDmg, timer: 5000, tickTimer: 0 });
+                    spawnFloatingText("BLIZZARD", 'enemy-sprite', 'text-blue-200');
+                    break;
+
+                // --- PLANT ---
+                case 'vineWhip':
+                    let pMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * pMult, "text-green-500");
+                    break;
+                case 'entangle':
+                    addBuff('webSlow', base + ((skillLevel-1)*1000));
+                    spawnFloatingText("ROOTED!", 'player-hp-bar', 'text-green-600');
+                    break;
+                case 'solarBeam':
+                    let sbMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * sbMult, "text-green-300");
+                    break;
+
+                // --- LIGHTNING ---
+                case 'shock':
+                    let liMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * liMult, "text-yellow-400");
+                    break;
+                case 'thunderstorm':
+                    let tsMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
+                    applySkillDmg(calculatedStats.damage * tsMult, "text-yellow-500");
+                    break;
+
+                default:
+                    used = false;
+            }
+
+            if(used) {
+                let baseCd = skillDef.cooldown;
+                let cdr = calculatedStats.cdr || 0;
+                let actualCd = baseCd * (1 - cdr);
+                
+                if(isAutocast) {
+                    actualCd *= 1.10; 
+                }
+
+                state.cooldowns[skillId] = actualCd;
+                
+                checkEnemyDeath();
+                updateCombatUI();
+                updateActiveSkillTimers();
+            }
+        }
+
+        // --- NEW: BUFF ICON SYSTEM ---
+
+        function updateBuffIcons() {
+            const container = document.getElementById('buff-container');
+            container.innerHTML = '';
+            
+            combat.buffs.forEach(buff => {
+                const meta = BUFF_ICONS[buff.id] || { icon: 'fa-star', color: 'bg-gray-600 border-gray-400' };
+                
+                const el = document.createElement('div');
+                el.className = `buff-icon w-8 h-8 rounded-full border-2 text-white flex items-center justify-center relative shadow-lg ${meta.color}`;
+                el.innerHTML = `
+                    <i class="fa-solid ${meta.icon} text-xs"></i>
+                    <div class="absolute -bottom-1 -right-1 text-[8px] bg-black text-white px-1 rounded-full border border-gray-600 font-mono">${Math.ceil(buff.duration/1000)}s</div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        function getSkillCost(skill, currentLevel) {
+            if (skill.type === 'active') return skill.cost + (currentLevel || 0); 
+            return skill.cost + (currentLevel || 0);
+        }
+
+        function canAffordAnySkill(attr) {
+            const skills = SKILLS[attr];
+            if (!skills) return false;
+            const sp = state.attributes[attr].sp;
+            const currentLevels = state.skillLevels[attr] || {};
+
+            return skills.some(skill => {
+                const level = currentLevels[skill.id] || 0;
+                const cost = getSkillCost(skill, level);
+                return sp >= cost;
+            });
+        }
+
+        function purchaseSkill(attr, skillId) {
+            const skill = SKILL_LOOKUP[skillId];
+            const attrData = state.attributes[attr];
+            
+            const currentLevel = state.skillLevels[attr][skillId] || 0;
+            const cost = getSkillCost(skill, currentLevel);
+
+            if (attrData.sp < cost) return;
+
+            state.attributes[attr].sp -= cost;
+            state.skillLevels[attr][skillId] = currentLevel + 1;
+            
+            log(`Upgraded ${skill.name} to Lvl ${currentLevel + 1}!`, "text-green-400");
+
+            calculateStats();
+            renderSkillTree(attr);
+            updateAttributeUI();
+            
+            if(skill.type === 'active' || skill.effect.cdr || skill.effect.autocastSlots) renderActiveSkillsList();
+        }
+
+        function respecTree() {
+            if (!currentOpenTree) return;
+            const attrName = ATTRIBUTES[currentOpenTree].name;
+            if(!confirm(`Reset skills for ${attrName}? You will regain spent SP.`)) return;
+            
+            const key = currentOpenTree;
+            const levelMap = state.skillLevels[key];
+            
+            for (let skillId in levelMap) {
+                const level = levelMap[skillId];
+                if (level > 0) {
+                    const skill = SKILL_LOOKUP[skillId];
+                    if (skill) {
+                        let refund = 0;
+                        for(let i=0; i<level; i++) {
+                            refund += (skill.cost + i);
+                        }
+                        state.attributes[key].sp += refund;
+                        
+                        if (state.autocastPreferences && state.autocastPreferences[skillId]) {
+                            delete state.autocastPreferences[skillId];
+                        }
+                    }
+                }
+            }
+            
+            state.skillLevels[key] = {}; 
+            
+            calculateStats();
+            renderSkillTree(currentOpenTree);
+            updateAttributeUI();
+            renderActiveSkillsList(); 
+            log(`Skills reset for ${attrName}.`, "text-yellow-400");
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            const btn = document.getElementById('pause-btn');
+            if(isPaused) {
+                btn.innerText = "Resume";
+                btn.innerHTML = '<i class="fa-solid fa-play"></i> Resume Game'; 
+                btn.classList.replace('bg-yellow-700', 'bg-green-700');
+                btn.classList.replace('hover:bg-yellow-600', 'hover:bg-green-600');
+                btn.classList.replace('border-yellow-500', 'border-green-500');
+                log("Game Paused.", "text-yellow-500");
+            } else {
+                btn.innerText = "Pause";
+                btn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause Game'; 
+                btn.classList.replace('bg-green-700', 'bg-yellow-700');
+                btn.classList.replace('hover:bg-green-600', 'hover:bg-yellow-600');
+                btn.classList.replace('border-green-500', 'border-yellow-500');
+                log("Game Resumed.", "text-green-500");
+            }
+        }
+
+        // --- OPTIONS MODAL FUNCTIONS ---
+
+        function openOptionsModal() {
+            const modal = document.getElementById('options-modal');
+            const content = document.getElementById('options-modal-content');
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+            
+            renderTypeChart();
+        }
+
+        function closeOptionsModal() {
+            const modal = document.getElementById('options-modal');
+            const content = document.getElementById('options-modal-content');
+            
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            modal.classList.add('opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function renderTypeChart() {
+            const container = document.getElementById('type-chart-container');
+            if(!container) return;
+            container.innerHTML = '';
+            
+            // Header
+            container.innerHTML += '<div class="grid grid-cols-3 gap-2 text-xs font-bold text-gray-400 border-b border-gray-700 pb-2 mb-2 sticky top-0 bg-gray-800"><div>Element</div><div>Strong Vs</div><div>Weak Vs</div></div>';
+            
+            for(let elem in ELEMENTAL_CHART) {
+                if(elem === 'physical') continue;
+                const data = ELEMENTAL_CHART[elem];
+                const strong = Array.isArray(data.strong) ? data.strong.join(', ') : (data.strong || '-');
+                const weak = Array.isArray(data.weak) ? data.weak.join(', ') : (data.weak || '-');
+                
+                const row = document.createElement('div');
+                row.className = 'grid grid-cols-3 gap-2 text-xs border-b border-gray-700 py-2 items-center hover:bg-gray-700/50 transition';
+                row.innerHTML = `
+                    <div class="capitalize ${ATTRIBUTES[elem] ? ATTRIBUTES[elem].color : 'text-gray-300'} font-bold flex items-center gap-2">
+                        ${ATTRIBUTES[elem] ? `<i class="fa-solid ${ATTRIBUTES[elem].icon} w-4"></i>` : ''} ${elem}
+                    </div>
+                    <div class="text-green-400 capitalize">${strong}</div>
+                    <div class="text-red-400 capitalize">${weak}</div>
+                `;
+                container.appendChild(row);
+            }
+        }
+
+        function prestige() {
+            closeOptionsModal();
+            const zonesCleared = (state.maxUnlockedZone || 0) + ((state.ngPlus || 0) * 9);
+            
+            if(zonesCleared === 0) {
+                alert("You haven't cleared any zones yet! Defeat the boss of the Rat Cellar first.");
+                return;
+            }
+
+            const earnedPrestige = zonesCleared * 2;
+
+            if(!confirm(`PRESTIGE RESET?\n\nYou will gain +${earnedPrestige}% XP Bonus.\n\nArtifacts remain. All else resets.`)) return;
+
+            const savedArtifacts = state.artifacts || [];
+            const newPrestige = (state.prestigeXP || 0) + earnedPrestige;
+
+            state = getInitialState();
+            state.prestigeXP = newPrestige;
+            state.artifacts = savedArtifacts; // <--- RESTORE ARTIFACTS
+
+            log(`PRESTIGE SUCCESSFUL! +${earnedPrestige}% XP Bonus.`, "text-purple-400 font-bold text-xl");
+            
+            const ind = document.getElementById('ng-indicator');
+            if(ind) ind.innerText = `Cycle 0`;
+
+            combat.enemy = null;
+            combat.buffs = [];
+            activeEffects = [];
+            updateBuffIcons();
+            
+            saveGame();
+            setTimeout(() => location.reload(), 1000);
+        }
+
+        function openNgModal() {
+            const modal = document.getElementById('ng-modal');
+            const content = document.getElementById('ng-content');
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            setTimeout(() => {
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeNgModal() {
+            const modal = document.getElementById('ng-modal');
+            const content = document.getElementById('ng-content');
+            
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            modal.classList.add('opacity-0');
+
+            setTimeout(() => modal.classList.add('hidden'), 500);
+        }
+
+        function startNewGamePlus() {
+            closeNgModal();
+            state.ngPlus = (state.ngPlus || 0) + 1;
+            state.currentZone = 0;
+            state.maxUnlockedZone = 0;
+            state.zoneKills = 0;
+            
+            combat.enemy = null;
+            combat.buffs = [];
+            activeEffects = [];
+            updateBuffIcons();
+            
+            log(`ASCENSION COMPLETE! Welcome to Cycle ${state.ngPlus}.`, "text-purple-400 font-bold text-xl");
+            
+            const ind = document.getElementById('ng-indicator');
+            ind.innerText = `Cycle ${state.ngPlus}`;
+            
+            spawnEnemy();
+            saveGame();
+        }
+
+        function exportSave() {
+            saveGame(); 
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "elemental_growth_save_" + Date.now() + ".json");
+            document.body.appendChild(downloadAnchorNode); 
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importSave() {
+            document.getElementById('import-file').click();
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const contents = e.target.result;
+                    const parsed = JSON.parse(contents);
+                    
+                    if (!parsed.attributes || !parsed.skillLevels) {
+                        log("Invalid save file format.", "text-red-500 font-bold");
+                        return;
+                    }
+
+                    state = { ...getInitialState(), ...parsed };
+                    
+                    // Deep merge attributes
+                    for (let key in ATTRIBUTES) {
+                        if (parsed.attributes && parsed.attributes[key]) {
+                            state.attributes[key] = { ...state.attributes[key], ...parsed.attributes[key] };
+                        }
+                    }
+                    
+                    saveGame();
+                    location.reload(); 
+                } catch (err) {
+                    console.error("Error importing save:", err);
+                    log("Failed to import save file.", "text-red-500 font-bold");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; 
+        }
+
+        // --- UI RENDERERS ---
+
+        function updateCombatUI() {
+            if(!combat.enemy || isNaN(combat.enemyMaxHp)) return;
+
+            let ehpPct = (combat.enemyHp / combat.enemyMaxHp) * 100;
+            document.getElementById('enemy-hp-bar').style.width = `${Math.max(0, ehpPct)}%`;
+            document.getElementById('enemy-hp-text').innerText = `${formatNumber(Math.max(0, Math.floor(combat.enemyHp)))} / ${formatNumber(combat.enemyMaxHp)}`;
+
+            let phpPct = (combat.playerHp / combat.playerMaxHp) * 100;
+            document.getElementById('player-hp-bar').style.width = `${Math.max(0, phpPct)}%`;
+            document.getElementById('player-hp-text').innerText = `${formatNumber(Math.max(0, Math.floor(combat.playerHp)))} / ${formatNumber(combat.playerMaxHp)}`;
+        }
+
+        function updateZoneProgressUI() {
+            const progressBar = document.getElementById('zone-progress-bar');
+            const progressText = document.getElementById('zone-progress-text');
+            
+            let kills = state.zoneKills;
+            if(kills > 10) kills = 10;
+            const pct = (kills / 10) * 100;
+            
+            progressBar.style.width = `${pct}%`;
+            progressText.innerText = `${kills}/10`;
+            
+            if (combat.isBoss) {
+                progressText.innerText = "BOSS";
+                progressBar.classList.add('bg-red-600');
+                progressBar.classList.remove('bg-yellow-600');
+            } else {
+                progressBar.classList.add('bg-yellow-600');
+                progressBar.classList.remove('bg-red-600');
+            }
+        }
+
+        // Optimized Damage Text: Pooling limitation
+        function spawnDamageText(amount, targetId, isCrit, isPlayerDmg, colorClass = null) {
+            const container = document.getElementById('damage-container');
+            // Throttling: Limit number of active texts
+            if (container.childElementCount > 40) {
+                container.removeChild(container.firstElementChild);
+            }
+
+            const targetEl = document.getElementById(targetId);
+            if (!targetEl) return;
+            
+            const rect = targetEl.getBoundingClientRect();
+            const containerRect = document.getElementById('battle-area').getBoundingClientRect();
+
+            const el = document.createElement('div');
+            el.innerText = formatNumber(Math.floor(amount));
+            el.className = 'damage-text';
+            
+            let left = rect.left - containerRect.left + (rect.width / 2);
+            let top = rect.top - containerRect.top + (rect.height / 3);
+
+            left += (Math.random() * 60 - 30);
+            top += (Math.random() * 20 - 10);
+
+            el.style.left = `${left}px`;
+            el.style.top = `${top}px`;
+
+            if (colorClass) {
+                el.classList.add(colorClass);
+            } else if (isPlayerDmg) {
+                el.classList.add('text-red-500'); 
+            } else {
+                el.classList.add('text-white');
+            }
+
+            if (isCrit) {
+                el.style.fontSize = '28px';
+                el.style.color = '#fbbf24'; 
+                el.innerText += "!";
+            } else {
+                el.style.fontSize = '18px';
+            }
+
+            container.appendChild(el);
+            setTimeout(() => { if(el.parentNode) el.remove(); }, 800);
+        }
+
+        function spawnFloatingText(text, targetId, colorClass) {
+            const container = document.getElementById('damage-container');
+            const targetEl = document.getElementById(targetId);
+            const containerRect = document.getElementById('battle-area').getBoundingClientRect();
+            const rect = targetEl.getBoundingClientRect();
+            
+            const el = document.createElement('div');
+            el.innerText = text;
+            el.className = `damage-text ${colorClass} text-sm font-bold`;
+            el.style.left = `${(rect.left - containerRect.left) + 40}px`;
+            el.style.top = `${(rect.top - containerRect.top)}px`;
+            
+            container.appendChild(el);
+            setTimeout(() => { if(el.parentNode) el.remove(); }, 800);
+        }
+
+        // --- OPTIMIZED ATTRIBUTE RENDERING ---
+        
+        function initAttributeUI() {
+            const list = document.getElementById('attribute-list');
+            list.innerHTML = '';
+
+            for (let key in ATTRIBUTES) {
+                const meta = ATTRIBUTES[key];
+                const attrData = state.attributes[key];
+
+                // LOGIC: Hidden if 0 XP and Level 1
+                const isHidden = (attrData.xp === 0 && attrData.level === 1);
+                const hiddenClass = isHidden ? 'hidden' : '';
+
+                const div = document.createElement('div');
+                div.id = `attr-card-${key}`;
+                div.className = `attribute-card bg-gray-800 p-2 rounded border border-gray-700 shadow-sm cursor-pointer transition-all hover:bg-gray-750 hover:border-gray-500 select-none ${hiddenClass}`;
+                div.onclick = () => openSkillModal(key);
+                
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-1 pointer-events-none">
+                        <span class="font-bold ${meta.color} flex items-center gap-2">
+                            <i class="fa-solid ${meta.icon} w-5 text-center"></i> ${meta.name}
+                        </span>
+                        <div class="flex gap-2">
+                            <span id="attr-sp-${key}" class="hidden text-[10px] text-white px-1.5 rounded-full font-bold"></span>
+                            <span id="attr-lvl-${key}" class="text-white text-xs bg-gray-700 px-1 rounded">Lv 1</span>
+                        </div>
+                    </div>
+                    <div class="w-full h-2 bg-gray-900 rounded-full overflow-hidden relative pointer-events-none">
+                        <div id="attr-bar-${key}" class="h-full ${meta.barColor} progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between mt-1 pointer-events-none">
+                        <span id="attr-xp-${key}" class="text-[10px] text-gray-500">0 / 100 XP</span>
+                    </div>
+                `;
+                list.appendChild(div);
+            }
+        }
+
+        function updateAttributeUI() {
+            for (let key in ATTRIBUTES) {
+                if (!state.attributes[key]) continue;
+                const attr = state.attributes[key];
+        
+                if (attr.xp > 0 || attr.level > 1) {
+                    const card = document.getElementById(`attr-card-${key}`);
+                    if(card && card.classList.contains('hidden')) {
+                        card.classList.remove('hidden');
+                        card.classList.add('animate-fade-in'); // Optional visual flare
+                    }
+                }
+                
+                const lvlEl = document.getElementById(`attr-lvl-${key}`);
+                const spEl = document.getElementById(`attr-sp-${key}`);
+                const barEl = document.getElementById(`attr-bar-${key}`);
+                const xpEl = document.getElementById(`attr-xp-${key}`);
+                
+                if (lvlEl) lvlEl.innerText = `Lv ${attr.level}`;
+                
+                if (spEl) {
+                    if(attr.sp > 0) {
+                        spEl.classList.remove('hidden');
+                        spEl.innerText = `${attr.sp} SP`;
+                        const canBuy = canAffordAnySkill(key);
+                        spEl.className = `text-[10px] text-white px-1.5 rounded-full font-bold ${canBuy ? "bg-red-600 animate-pulse" : "bg-gray-600"}`;
+                    } else {
+                        spEl.classList.add('hidden');
+                    }
+                }
+                
+                if (barEl) {
+                    const pct = (attr.xp / attr.maxXp) * 100;
+                    barEl.style.width = `${pct}%`;
+                }
+                
+                if (xpEl) {
+                    xpEl.innerText = `${formatNumber(Math.floor(attr.xp))} / ${formatNumber(attr.maxXp)} XP`;
+                }
+            }
+        }
+
+        function updateStatSheet() {
+            const el = document.getElementById('stat-sheet');
+            let thornsText = calculatedStats.thorns > 0 ? `<div class="flex justify-between border-b border-gray-800 pb-1"><span>Thorns:</span> <span class="text-amber-600 font-bold">${(calculatedStats.thorns * 100).toFixed(0)}%</span></div>` : '';
+            
+            el.innerHTML = `
+                <div class="flex justify-between border-b border-gray-800 pb-1"><span>Damage:</span> <span class="text-white font-bold">${formatNumber(calculatedStats.damage)}</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-1"><span>Max HP:</span> <span class="text-white font-bold">${formatNumber(calculatedStats.hp)}</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-1"><span>Defense:</span> <span class="text-white font-bold">${formatNumber(calculatedStats.defense)}</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-1"><span>Dodge:</span> <span class="text-white font-bold">${(calculatedStats.dodge * 100).toFixed(1)}%</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-1"><span>Atk Spd:</span> <span class="text-white font-bold">${calculatedStats.attackSpeed.toFixed(2)}s</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-1"><span>Crit %:</span> <span class="text-white font-bold">${(calculatedStats.critChance*100).toFixed(1)}%</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-1"><span>Crit Dmg:</span> <span class="text-white font-bold">${(calculatedStats.critDmg*100).toFixed(0)}%</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-1"><span>Life/Hit:</span> <span class="text-green-300 font-bold">${calculatedStats.lifeOnHit.toFixed(1)}</span></div>
+                <div class="flex justify-between border-b border-gray-800 pb-1"><span>Regen:</span> <span class="text-green-400 font-bold">${(calculatedStats.regenPct*100).toFixed(1)}%/s</span></div>
+                <div class="flex justify-between pt-1"><span>CDR:</span> <span class="text-blue-400 font-bold">${(calculatedStats.cdr * 100).toFixed(0)}%</span></div>
+                <div class="flex justify-between pt-1"><span>DPS:</span> <span class="text-red-400 font-bold">${(calculatedStats.dpsPct * 100).toFixed(0)}%</span></div>
+                ${thornsText}
+                <div class="flex justify-between pt-1 border-t border-gray-800 mt-1"><span>Prestige XP:</span> <span class="text-purple-400 font-bold">+${(state.prestigeXP || 0).toLocaleString()}%</span></div>
+            `;
+        }
+
+        function log(msg, colorClass="text-gray-300") {
+            const logEl = document.getElementById('combat-log');
+            const entry = document.createElement('div');
+            entry.className = `mb-1 ${colorClass} border-l-2 border-gray-800 pl-2`;
+            entry.innerHTML = msg;
+            logEl.prepend(entry);
+            if(logEl.children.length > 30) logEl.lastChild.remove();
+        }
+
+        let currentOpenTree = null;
+
+        function openSkillModal(attr) {
+            currentOpenTree = attr;
+            const modal = document.getElementById('skill-modal');
+            const content = document.getElementById('skill-modal-content');
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+            
+            renderModalTabs();
+            renderSkillTree(attr);
+        }
+
+        function closeSkillModal() {
+            const modal = document.getElementById('skill-modal');
+            const content = document.getElementById('skill-modal-content');
+            
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            modal.classList.add('opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+            currentOpenTree = null;
+        }
+
+        function renderModalTabs() {
+            const container = document.getElementById('modal-tabs');
+            container.innerHTML = '';
+            for (let key in ATTRIBUTES) {
+                if (state.attributes[key].xp === 0 && state.attributes[key].level === 1) continue;
+
+                const attr = ATTRIBUTES[key];
+                if(!state.attributes[key]) continue;
+
+                const btn = document.createElement('button');
+                btn.className = `flex-shrink-0 px-4 py-3 text-sm font-bold border-b-2 transition ${currentOpenTree === key ? 'border-blue-500 text-white bg-gray-800' : 'border-transparent text-gray-500 hover:text-gray-300'}`;
+                
+                let spBadge = '';
+                if(state.attributes[key].sp > 0) {
+                    const canBuy = canAffordAnySkill(key);
+                    const color = canBuy ? "bg-red-600" : "bg-gray-600";
+                    spBadge = `<span class="ml-2 w-5 h-5 ${color} text-white text-[10px] rounded-full inline-flex items-center justify-center">${state.attributes[key].sp}</span>`;
+                }
+
+                btn.innerHTML = `<i class="fa-solid ${attr.icon} mr-1"></i> ${key.substring(0,3).toUpperCase()} ${spBadge}`;
+                btn.onclick = () => {
+                    currentOpenTree = key;
+                    renderModalTabs();
+                    renderSkillTree(key);
+                };
+                container.appendChild(btn);
+            }
+        }
+
+        function renderSkillTree(attr) {
+            const container = document.getElementById('modal-tree-view');
+            container.innerHTML = '';
+
+            const skills = SKILLS[attr];
+            const currentLevels = state.skillLevels[attr] || {};
+            const availableSP = state.attributes[attr].sp;
+
+            document.getElementById('modal-sp-display').innerText = `${ATTRIBUTES[attr].name} SP: ${availableSP}`;
+
+            if(!skills) {
+                container.innerHTML = "<div class='text-gray-500'>No skills defined for this attribute yet.</div>";
+                return;
+            }
+
+            skills.forEach((skill) => {
+                const level = currentLevels[skill.id] || 0;
+                const cost = getSkillCost(skill, level);
+                const isActive = skill.type === 'active';
+                // Active skills can now be leveled infinitely
+                const isMaxed = false; 
+                
+                const canBuy = availableSP >= cost;
+
+                const node = document.createElement('div');
+                node.className = `skill-node p-4 mb-4 rounded-lg border-2 bg-gray-800 relative select-none flex justify-between items-center ${level > 0 ? 'purchased border-green-900/50 bg-green-900/10' : 'border-gray-700'}`;
+                
+                let costText = `${cost} SP`;
+                let btnClass = canBuy ? "bg-yellow-600 hover:bg-yellow-500 text-white shadow-lg animate-pulse" : 
+                               "bg-gray-700 text-gray-500 cursor-not-allowed";
+
+                node.innerHTML = `
+                    <div class="flex-1 pr-4">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="font-bold text-base ${level > 0 ? 'text-green-400' : 'text-gray-300'}">${skill.name}</span>
+                            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${isActive ? 'bg-blue-900 text-blue-300' : 'bg-gray-700 text-gray-400'}">${skill.type}</span>
+                        </div>
+                        <div class="text-sm text-gray-400">${getDynamicSkillDesc(skill, level)}</div>
+                    </div>
+                    
+                    <div class="flex flex-col items-end gap-2 shrink-0">
+                        <span class="text-xs text-gray-500">Lvl ${level}</span>
+                        <button class="px-3 py-1 rounded font-bold text-xs transition-all ${btnClass}" ${canBuy ? '' : 'disabled'}>
+                             ${costText}
+                        </button>
+                    </div>
+                `;
+
+                if (canBuy) {
+                    node.classList.add('cursor-pointer', 'hover:border-yellow-500', 'transition-colors');
+                    node.onclick = () => purchaseSkill(attr, skill.id);
+                }
+
+                container.appendChild(node);
+            });
+        }
+
+        function renderActiveSkillsList() {
+            const container = document.getElementById('active-skills-list');
+            const noSkillsMsg = document.getElementById('no-skills-msg');
+            
+            allUnlockedSkills = [];
+            for (let attr in state.skillLevels) {
+                if(state.skillLevels[attr]) {
+                    for(let skillId in state.skillLevels[attr]) {
+                        if (state.skillLevels[attr][skillId] > 0) {
+                            const skill = SKILL_LOOKUP[skillId];
+                            if (skill && skill.type === 'active') {
+                                allUnlockedSkills.push(skill);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (allUnlockedSkills.length === 0) {
+                container.innerHTML = '';
+                container.appendChild(noSkillsMsg);
+                noSkillsMsg.classList.remove('hidden');
+                domCache = {}; // Clear cache
+                return;
+            } else {
+                noSkillsMsg.classList.add('hidden');
+            }
+
+            container.innerHTML = ''; 
+            container.appendChild(noSkillsMsg); 
+
+            // SORTING LOGIC
+            if (state.skillOrder && state.skillOrder.length > 0) {
+                allUnlockedSkills.sort((a, b) => {
+                    let indexA = state.skillOrder.indexOf(a.id);
+                    let indexB = state.skillOrder.indexOf(b.id);
+                    if (indexA === -1) indexA = 9999;
+                    if (indexB === -1) indexB = 9999;
+                    return indexA - indexB;
+                });
+            }
+            
+            state.skillOrder = allUnlockedSkills.map(s => s.id);
+            domCache = {}; // Reset cache
+
+            const canAutocast = calculatedStats.autocastSlots > 0;
+
+            allUnlockedSkills.forEach(skill => {
+                const attrMeta = ATTRIBUTES[skill.attr];
+                const isAutocast = state.autocastPreferences && state.autocastPreferences[skill.id];
+                
+                const skillLevel = state.skillLevels[skill.attr][skill.id];
+                
+                const card = document.createElement('div');
+                card.id = `skill-card-${skill.id}`; 
+                card.className = `relative pl-0 p-2 bg-gray-800 border rounded flex gap-3 items-center overflow-hidden group transition-all skill-card-ready draggable-card`;
+                card.setAttribute('draggable', 'false');
+
+                card.onmousedown = (e) => {
+                    if (e.target.closest('.drag-handle')) {
+                        card.setAttribute('draggable', 'true');
+                    } else {
+                        card.setAttribute('draggable', 'false');
+                    }
+                };
+                
+                card.ondragstart = (e) => handleDragStart(e, skill.id);
+                card.ondragover = (e) => handleDragOver(e);
+                card.ondragleave = (e) => handleDragLeave(e);
+                card.ondrop = (e) => handleDrop(e, skill.id);
+                card.ondragend = (e) => handleDragEnd(e);
+
+                card.onclick = (e) => {
+                     if(e.target.closest('.autocast-btn')) return;
+                     if(isPaused) return;
+
+                     if((state.cooldowns[skill.id] || 0) <= 0) {
+                        castActive(skill.id);
+                        card.classList.add('scale-95');
+                        setTimeout(() => card.classList.remove('scale-95'), 100);
+                     }
+                };
+
+                let autocastBtnHtml = '';
+                if (canAutocast) {
+                    autocastBtnHtml = `
+                    <button class="autocast-btn z-30 w-6 h-6 rounded-full flex items-center justify-center text-[8px] border transition-all ${isAutocast ? 'btn-autocast-on' : 'btn-autocast-off'}" onclick="toggleAutocast('${skill.id}', this)" title="Toggle Autocast (10% Slower Cooldown)">
+                        <i class="fa-solid fa-circle"></i>
+                    </button>`;
+                }
+
+                card.innerHTML = `
+                    <div id="skill-overlay-${skill.id}" class="absolute inset-0 bg-black/60 z-20 pointer-events-none transition-all duration-100 origin-left" style="transform: scaleX(0)"></div>
+                    
+                    <div class="drag-handle w-6 self-stretch bg-gray-900/50 hover:bg-gray-700 cursor-grab flex items-center justify-center border-r border-gray-700 z-20">
+                        <i class="fa-solid fa-grip-vertical text-gray-500"></i>
+                    </div>
+
+                    <div class="w-10 h-10 rounded bg-gray-900 flex items-center justify-center shrink-0 z-10 border border-gray-700 pointer-events-none ml-2">
+                        <i class="fa-solid fa-bolt ${attrMeta.color} text-lg"></i>
+                    </div>
+
+                    <div class="flex-1 z-10 min-w-0 pointer-events-none">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-sm text-gray-200 truncate pr-2">${skill.name} <span class="text-[10px] text-yellow-500">Lv${skillLevel}</span></span>
+                            <span id="skill-timer-${skill.id}" class="text-xs font-mono text-gray-400"></span>
+                        </div>
+                        <div class="text-[10px] text-gray-500 truncate leading-tight">${getDynamicSkillDesc(skill, skillLevel)}</div>
+                    </div>
+                    
+                    ${autocastBtnHtml}
+                `;
+
+                container.appendChild(card);
+                
+                // Cache DOM elements
+                domCache[skill.id] = {
+                    card: card,
+                    overlay: card.querySelector(`#skill-overlay-${skill.id}`),
+                    timerText: card.querySelector(`#skill-timer-${skill.id}`)
+                };
+            });
+            
+            updateActiveSkillTimers();
+            updateAutocastUI();
+        }
+
+        // --- DRAG AND DROP HANDLERS ---
+        
+        let draggedSkillId = null;
+
+        function handleDragStart(e, skillId) {
+            draggedSkillId = skillId;
+            e.target.closest('.draggable-card').classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault(); 
+            e.dataTransfer.dropEffect = 'move';
+            const card = e.target.closest('.draggable-card');
+            if (card) {
+                card.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            const card = e.target.closest('.draggable-card');
+            if (card) {
+                card.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e, targetSkillId) {
+            e.preventDefault();
+            const card = e.target.closest('.draggable-card');
+            if (card) card.classList.remove('drag-over');
+
+            if (draggedSkillId && draggedSkillId !== targetSkillId) {
+                const oldIndex = state.skillOrder.indexOf(draggedSkillId);
+                const newIndex = state.skillOrder.indexOf(targetSkillId);
+
+                if (oldIndex > -1 && newIndex > -1) {
+                    state.skillOrder.splice(oldIndex, 1);
+                    state.skillOrder.splice(newIndex, 0, draggedSkillId);
+                    
+                    renderActiveSkillsList();
+                }
+            }
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            draggedSkillId = null;
+        }
+        
+        function toggleAutocast(skillId, btnElement) {
+            if(!state.autocastPreferences) state.autocastPreferences = {};
+            
+            const currentlyEnabled = Object.values(state.autocastPreferences).filter(v => v).length;
+            const maxSlots = calculatedStats.autocastSlots || 0;
+            
+            if (state.autocastPreferences[skillId]) {
+                state.autocastPreferences[skillId] = false;
+                btnElement.classList.remove('btn-autocast-on');
+                btnElement.classList.add('btn-autocast-off');
+            } else {
+                if (currentlyEnabled < maxSlots) {
+                    state.autocastPreferences[skillId] = true;
+                    btnElement.classList.remove('btn-autocast-off');
+                    btnElement.classList.add('btn-autocast-on');
+                } else {
+                    btnElement.classList.add('shake');
+                    setTimeout(() => btnElement.classList.remove('shake'), 300);
+                    log(`Max Autocast Slots (${maxSlots}) reached! Upgrade Neural Network.`, "text-red-400");
+                }
+            }
+            updateAutocastUI();
+        }
+
+        function updateAutocastUI() {
+            const el = document.getElementById('autocast-status');
+            const hint = document.getElementById('autocast-hint');
+            const currentlyEnabled = Object.values(state.autocastPreferences || {}).filter(v => v).length;
+            const maxSlots = calculatedStats.autocastSlots || 0;
+            
+            if (maxSlots > 0) {
+                el.classList.remove('hidden');
+                if(hint) hint.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+                if(hint) hint.classList.add('hidden');
+                return;
+            }
+
+            el.innerText = `Auto: ${currentlyEnabled}/${maxSlots}`;
+            
+            if (currentlyEnabled >= maxSlots && maxSlots > 0) {
+                 el.classList.add('text-orange-400');
+                 el.classList.remove('text-cyan-400');
+            } else {
+                 el.classList.add('text-cyan-400');
+                 el.classList.remove('text-orange-400');
+            }
+        }
+
+        function updateActiveSkillTimers() {
+            allUnlockedSkills.forEach(skill => {
+                const cached = domCache[skill.id];
+                if (!cached) return;
+
+                const { card, overlay, timerText } = cached;
+                const cdRemaining = state.cooldowns[skill.id] || 0;
+                
+                if (cdRemaining > 0) {
+                    let baseCd = skill.cooldown * (1 - (calculatedStats.cdr || 0));
+                    
+                    const pct = Math.min(1, cdRemaining / baseCd); 
+                    
+                    overlay.style.transform = `scaleX(${pct})`;
+                    timerText.innerText = `${(cdRemaining/1000).toFixed(1)}s`;
+                    
+                    if(card.classList.contains('skill-card-ready')) {
+                        card.classList.remove('skill-card-ready', 'hover:border-white');
+                        card.classList.add('skill-card-cooldown', 'border-gray-700');
+                    }
+                } else {
+                    overlay.style.transform = `scaleX(0)`;
+                    timerText.innerText = `READY`;
+                    
+                    if(card.classList.contains('skill-card-cooldown')) {
+                        card.classList.remove('skill-card-cooldown', 'border-gray-700');
+                        card.classList.add('skill-card-ready', 'hover:border-white');
+                        card.classList.add('brightness-150');
+                        setTimeout(() => card.classList.remove('brightness-150'), 200);
+                    }
+                }
+            });
+        }
+
+        // --- MAP FUNCTIONS ---
+
+        function openMapModal() {
+            const modal = document.getElementById('map-modal');
+            const content = document.getElementById('map-modal-content');
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+
+            renderMapMarkers();
+        }
+
+        function closeMapModal() {
+            const modal = document.getElementById('map-modal');
+            const content = document.getElementById('map-modal-content');
+            
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            modal.classList.add('opacity-0');
+
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function renderMapMarkers() {
+            const container = document.getElementById('map-markers');
+            container.innerHTML = '';
+
+            const maxUnlocked = state.maxUnlockedZone || 0;
+
+            ZONES.forEach((zone, idx) => {
+                const isLocked = idx > maxUnlocked;
+                const marker = document.createElement('div');
+                marker.className = `absolute map-marker flex flex-col items-center group ${state.currentZone === idx ? 'active-zone z-50' : 'z-10'} ${isLocked ? 'locked-zone' : 'cursor-pointer'}`;
+                // Using percentage coordinates
+                marker.style.left = `${zone.x}%`;
+                marker.style.top = `${zone.y}%`;
+                
+                let icon = isLocked ? '<i class="fa-solid fa-lock"></i>' : '<i class="fa-solid fa-location-dot"></i>';
+                let tooltip = isLocked ? `<div class="font-bold text-sm text-red-400">LOCKED</div>` : `<div class="font-bold text-sm">${zone.name}</div><div class="text-gray-400">${zone.desc}</div>`;
+
+                // Pin design
+                marker.innerHTML = `
+                    <div class="absolute bottom-full mb-2 bg-gray-900 border border-gray-600 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                        ${tooltip}
+                    </div>
+                    
+                    <div class="marker-pin w-8 h-8 rounded-full border-2 border-white shadow-lg flex items-center justify-center bg-gray-800 text-white relative">
+                        ${icon}
+                    </div>
+                    ${state.currentZone === idx ? '<div class="text-[10px] bg-green-900 text-green-200 px-1 rounded mt-1 font-bold">YOU</div>' : ''}
+                `;
+
+                if (!isLocked) {
+                    marker.onclick = () => {
+                        selectZone(idx);
+                    };
+                }
+
+                container.appendChild(marker);
+            });
+        }
+
+        function selectZone(zoneId) {
+            if (zoneId === state.currentZone) {
+                closeMapModal();
+                return;
+            }
+            
+            state.currentZone = zoneId;
+            state.zoneKills = 0; 
+            
+            const zone = ZONES[zoneId];
+            document.getElementById('zone-name').innerText = zone.name;
+            document.getElementById('zone-desc').innerText = zone.desc;
+            
+            log(`Traveled to ${zone.name}.`, "text-blue-300");
+            spawnEnemy();
+            
+            closeMapModal();
+        }
+
+        function saveGame() {
+            if (isHardResetting) return; // STOP SAVING IF RESETTING
+
+            state.lastSave = Date.now();
+            localStorage.setItem('attributeIdleSaveV9_0', JSON.stringify(state));
+            const btn = document.querySelector('button[onclick="saveGame()"]');
+            if(btn) {
+                // ... existing button animation code ...
+                const originalText = btn.innerText;
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Saved!';
+                btn.classList.replace('bg-blue-600', 'bg-green-600');
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.classList.replace('bg-green-600', 'bg-blue-600');
+                }, 1000);
+            }
+        }
+
+        function loadGame() {
+            try {
+                let saved = localStorage.getItem('attributeIdleSaveV9_0');
+                
+                if(!saved) {
+                    const legacyVersions = [
+                        'attributeIdleSaveV8_2',
+                        'attributeIdleSaveV8_0',
+                        'attributeIdleSaveV7_9'
+                    ];
+                    for (let ver of legacyVersions) {
+                        saved = localStorage.getItem(ver);
+                        if (saved) break;
+                    }
+                }
+
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    state = { ...getInitialState(), ...parsed };
+                    
+                    if(parsed.currentZone !== undefined) state.currentZone = parsed.currentZone;
+                    
+                    state.maxUnlockedZone = parsed.maxUnlockedZone || (parsed.currentZone || 0);
+                    state.zoneKills = parsed.zoneKills || 0;
+                    state.autocastPreferences = parsed.autocastPreferences || {};
+                    state.skillOrder = parsed.skillOrder || [];
+                    state.ngPlus = parsed.ngPlus || 0;
+                    state.prestigeXP = parsed.prestigeXP || 0;
+
+                    for (let key in ATTRIBUTES) {
+                        if (parsed.attributes && parsed.attributes[key]) {
+                            state.attributes[key] = { ...state.attributes[key], ...parsed.attributes[key] };
+                        }
+                    }
+
+                    if (parsed.skillLevels && !Array.isArray(parsed.skillLevels)) {
+                        for (let key in ATTRIBUTES) {
+                            if (parsed.skillLevels[key]) state.skillLevels[key] = parsed.skillLevels[key];
+                        }
+                    }
+
+                    log("Game Loaded.", "text-green-500");
+                    
+                    if(state.ngPlus > 0) {
+                        document.getElementById('ng-indicator').innerText = `Cycle ${state.ngPlus}`;
+                    }
+                } else {
+                    log("New Adventure Started.", "text-green-500");
+                }
+            } catch (e) {
+                console.error("Save Load Error:", e);
+                initDefaultState();
+            }
+            
+            for(let key in ATTRIBUTES) {
+                if(!state.attributes[key]) {
+                    state.attributes[key] = { level: 1, xp: 0, maxXp: 100, sp: 0 };
+                    state.skillLevels[key] = {};
+                }
+                if(!state.skillLevels[key]) {
+                    state.skillLevels[key] = {};
+                }
+            }
+            
+            if (state.maxUnlockedZone === undefined) state.maxUnlockedZone = 0;
+            if (state.zoneKills === undefined) state.zoneKills = 0;
+
+            calculateStats();
+            
+            if(state.currentZone >= ZONES.length) state.currentZone = 0;
+
+            const zone = ZONES[state.currentZone];
+            if(zone) {
+                document.getElementById('zone-name').innerText = zone.name;
+                document.getElementById('zone-desc').innerText = zone.desc;
+            }
+        }
+
+        function hardReset() {
+            if(confirm("Are you sure? This will wipe all progress.")) {
+                isHardResetting = true; // Set flag to true
+                localStorage.removeItem('attributeIdleSaveV9_0');
+                localStorage.clear(); 
+                location.reload();
+            }
+        }
+
+        // --- INPUT HANDLING ---
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.key === ' ') {
+                e.preventDefault(); 
+                clickAttack();
+            }
+            if (e.key === 'Escape') {
+                if (!document.getElementById('skill-modal').classList.contains('hidden')) closeSkillModal();
+                if (!document.getElementById('map-modal').classList.contains('hidden')) closeMapModal();
+                if (!document.getElementById('ng-modal').classList.contains('hidden')) closeNgModal();
+                if (!document.getElementById('options-modal').classList.contains('hidden')) closeOptionsModal();
+            }
+            // TAB TO TOGGLE SKILLS
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const modal = document.getElementById('skill-modal');
+                if (modal.classList.contains('hidden')) {
+                    openSkillModal(currentOpenTree || 'strength');
+                } else {
+                    closeSkillModal();
+                }
+            }
+        });
+
+        // --- BOOT ---
+        init();
+
+    </script>
+</body>
+</html>
