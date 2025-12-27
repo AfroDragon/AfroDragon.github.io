@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attribute Idle: Elemental Expansion (Updated)</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Font Awesome (General UI) -->
@@ -162,6 +163,43 @@
             from { transform: scale(0); opacity: 0; }
             to { transform: scale(1); opacity: 1; }
         }
+        
+        .buff-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #111827;
+            border: 2px solid #374151;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            transition: transform 0.2s;
+        }
+        
+        .buff-circle:hover { transform: scale(1.1); z-index: 20; }
+
+        .buff-timer-ring {
+            position: absolute;
+            inset: -2px; /* Cover border */
+            border-radius: 50%;
+            z-index: 0;
+            opacity: 0.6;
+            pointer-events: none;
+            transition: background 0.1s linear;
+        }
+
+        .buff-circle-inner {
+            width: 26px;
+            height: 26px;
+            background-color: #1f2937;
+            border-radius: 50%;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body class="h-screen overflow-hidden flex flex-col text-sm md:text-base">
@@ -172,7 +210,7 @@
             <i class="fa-solid fa-dungeon text-purple-400 text-2xl"></i>
             <div>
                 <h1 class="text-lg md:text-xl font-bold text-white tracking-wider">AFRODRAGON'S ELEMENTAL GROWTH</h1>
-                <p class="text-xs text-gray-500">v1 (Release) <span id="ng-indicator" class="text-purple-400 font-bold ml-2">Cycle 0</span></p>
+                <p class="text-xs text-gray-500">v1.2 <span id="ng-indicator" class="text-purple-400 font-bold ml-2">Cycle 0</span></p>
             </div>
         </div>
         <div class="flex gap-2">
@@ -237,71 +275,77 @@
                 <div class="absolute inset-0 opacity-5" style="background-image: radial-gradient(#4b5563 1px, transparent 1px); background-size: 20px 20px;"></div>
                 <div id="damage-container" class="absolute inset-0 pointer-events-none z-50"></div>
 
-                <!-- Enemy Display -->
-                <div class="flex flex-col items-center w-full max-w-md relative z-10">
-                    
-                    <!-- Boss Gimmick Banner -->
-                    <div id="boss-gimmick-container" class="w-full mb-2 hidden">
-                        <div class="bg-red-900/40 border border-red-500/50 rounded p-2 text-center gimmick-badge">
-                            <div class="text-xs text-red-300 font-bold uppercase tracking-widest">⚠️ Boss Ability Detected</div>
-                            <div id="gimmick-name" class="text-red-100 font-bold text-sm"></div>
-                            <div id="gimmick-desc" class="text-gray-400 text-xs italic"></div>
-                        </div>
-                    </div>
+                <div class="w-full flex justify-center items-stretch gap-2 relative z-10">
 
-                    <div class="w-full flex justify-between text-xs text-gray-400 mb-1 font-bold items-center">
-                        <div>
-                            <span id="enemy-name" class="text-red-300">Loading...</span>
-                            <span id="enemy-element-badge"></span>
+                    <div id="player-buffs-area" class="flex flex-col justify-end pb-24 items-end gap-3 w-12 shrink-0">
                         </div>
-                        <span class="text-white">Lvl <span id="enemy-level">1</span></span>
-                    </div>
-                    
-                    <div id="enemy-hp-container" class="w-full h-8 bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-700 relative mb-6 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
-                        <div id="enemy-hp-bar" class="h-full bg-gradient-to-r from-red-800 to-red-500 w-full transition-all duration-100"></div>
-                        <span id="enemy-hp-text" class="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow-md tracking-wider">?/?</span>
-                    </div>
-                    
-                    <div id="enemy-container" class="relative group">
-                        <div id="boss-badge" class="hidden absolute -top-4 left-1/2 -translate-x-1/2 bg-red-700 text-white text-xs font-bold px-2 py-0.5 rounded shadow z-20 border border-red-500 tracking-widest">BOSS</div>
-                        <div id="enemy-sprite" class="w-32 h-32 md:w-40 md:h-40 bg-gray-800 rounded-xl flex items-center justify-center text-6xl text-gray-400 border-4 border-gray-700 shadow-2xl mb-8 relative transition-transform duration-100">
-                            <i class="fa-solid fa-question"></i>
-                        </div>
-                        <div id="enemy-status" class="absolute -right-12 top-0 flex flex-col gap-1 text-2xl"></div>
-                    </div>
 
-                    <!-- Buff Bar -->
-                    <div class="w-full flex justify-between items-end mb-1 mt-4">
-                    <div class="flex items-center gap-2">
-                        <div class="flex items-center gap-2 group cursor-pointer" onclick="renameHero()">
-                            <span id="hero-name-label" class="text-green-300 text-xs font-bold uppercase tracking-wider">Hero</span>
-                            <i class="fa-solid fa-pen text-[10px] text-gray-600 group-hover:text-white transition-colors"></i>
-                        </div>
-                            
-                        <div id="buff-container" class="flex gap-1 items-center">
+                    <div class="flex flex-col items-center w-full max-w-md">
+                        
+                        <div id="boss-gimmick-container" class="w-full mb-2 hidden">
+                            <div class="bg-red-900/40 border border-red-500/50 rounded p-2 text-center gimmick-badge">
+                                <div class="text-xs text-red-300 font-bold uppercase tracking-widest">⚠️ Boss Ability Detected</div>
+                                <div id="gimmick-name" class="text-red-100 font-bold text-sm"></div>
+                                <div id="gimmick-desc" class="text-gray-400 text-xs italic"></div>
                             </div>
                         </div>
-                        <span class="text-xs text-gray-400 font-bold">HP</span>
-                    </div>
 
-                    <div class="w-full h-8 bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-700 relative mb-4 shadow-md">
-                    <div id="player-hp-bar" class="h-full bg-gradient-to-r from-green-800 to-green-500 w-full transition-all duration-100"></div>
-                        <span id="player-hp-text" class="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow-md tracking-wider">?/?</span>
+                        <div class="w-full flex justify-between text-xs text-gray-400 mb-1 font-bold items-center">
+                            <div>
+                                <span id="enemy-name" class="text-red-300">Loading...</span>
+                                <span id="enemy-element-badge"></span>
+                            </div>
+                            <span class="text-white">Lvl <span id="enemy-level">1</span></span>
+                        </div>
+                        
+                        <div class="w-full mb-6 relative z-20 shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg">
+                            <div id="enemy-hp-container" class="h-8 bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-700 relative">
+                                <div id="enemy-hp-bar" class="h-full bg-gradient-to-r from-red-800 to-red-500 w-full transition-all duration-100"></div>
+                                <span id="enemy-hp-text" class="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow-md tracking-wider">?/?</span>
+                            </div>
+                        </div>
+                        
+                        <div id="enemy-container" class="relative group">
+                            <div id="boss-badge" class="hidden absolute -top-4 left-1/2 -translate-x-1/2 bg-red-700 text-white text-xs font-bold px-2 py-0.5 rounded shadow z-20 border border-red-500 tracking-widest">BOSS</div>
+                            
+                            <div id="enemy-sprite" class="w-32 h-32 md:w-40 md:h-40 bg-gray-800 rounded-xl flex items-center justify-center text-6xl text-gray-400 border-4 border-gray-700 shadow-2xl mb-8 relative transition-transform duration-100">
+                                <i class="fa-solid fa-question"></i>
+                            </div>
+                            
+                            <div id="enemy-status" class="absolute -right-12 top-0 flex flex-col gap-1 text-2xl"></div>
                         </div>
 
-                    <div id="buff-bars-container" class="w-full flex flex-col gap-1 mb-4 empty:hidden"></div>
-                    <button id="main-attack-btn" onclick="clickAttack()" ... class="w-full py-4 bg-red-700 hover:bg-red-600 text-white font-bold rounded-lg border-b-4 border-red-900 active:border-b-0 active:translate-y-1 transition-all mb-1 text-xl shadow-lg relative overflow-hidden group">
-                        <span class="relative z-10 flex items-center justify-center gap-2"><i class="fa-solid fa-sword"></i> ATTACK</span>
-                        <div id="btn-cooldown-overlay" class="absolute inset-0 bg-black bg-opacity-60 z-0 origin-left transition-transform duration-100" style="transform: scaleX(0)"></div>
-                    </button>
-                    
-                    <div class="h-1 w-full bg-gray-900 rounded-full mb-6 overflow-hidden relative opacity-50">
-                         <div id="attack-timer-bar" class="h-full bg-yellow-500 w-full transition-none"></div>
+                        <div class="w-full flex justify-between items-end mb-1 mt-4">
+                            <div class="flex items-center gap-2 group cursor-pointer" onclick="renameHero()">
+                                <span id="hero-name-label" class="text-green-300 text-xs font-bold uppercase tracking-wider">Hero</span>
+                                <i class="fa-solid fa-pen text-[10px] text-gray-600 group-hover:text-white transition-colors"></i>
+                            </div>
+                            <span class="text-xs text-gray-400 font-bold">HP</span>
+                        </div>
+
+                        <div class="w-full mb-4 relative z-20 shadow-md rounded-lg">
+                            <div class="h-8 bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-700 relative">
+                                <div id="player-hp-bar" class="h-full bg-gradient-to-r from-green-800 to-green-500 w-full transition-all duration-100"></div>
+                                <span id="player-hp-text" class="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow-md tracking-wider">?/?</span>
+                            </div>
+                        </div>
+
+                        <button id="main-attack-btn" onclick="clickAttack()" class="w-full py-4 bg-red-700 hover:bg-red-600 text-white font-bold rounded-lg border-b-4 border-red-900 active:border-b-0 active:translate-y-1 transition-all mb-1 text-xl shadow-lg relative overflow-hidden group">
+                            <span class="relative z-10 flex items-center justify-center gap-2"><i class="fa-solid fa-sword"></i> ATTACK</span>
+                            <div id="btn-cooldown-overlay" class="absolute inset-0 bg-black bg-opacity-60 z-0 origin-left transition-transform duration-100" style="transform: scaleX(0)"></div>
+                        </button>
+                        
+                        <div class="h-1 w-full bg-gray-900 rounded-full mb-6 overflow-hidden relative opacity-50">
+                            <div id="attack-timer-bar" class="h-full bg-yellow-500 w-full transition-none"></div>
+                        </div>
+                        
+                        <div class="h-10"></div>
                     </div>
-                    
-                    <div class="h-10"></div>
+
+                    <div id="enemy-debuffs-area" class="flex flex-col pt-10 items-start gap-3 w-12 shrink-0">
+                        </div>
+
                 </div>
-            </div>
 
             <div class="h-40 bg-gray-950 border-t border-gray-700 p-3 font-mono text-xs overflow-y-auto shrink-0 custom-scrollbar" id="combat-log">
                 <div class="text-green-500 border-b border-gray-800 pb-1 mb-1">System initialized. Optimization Loaded.</div>
@@ -409,15 +453,15 @@
                 </button>
             </div>
 
-            <!-- CSS Generated Map -->
-            <div class="flex-1 relative overflow-hidden flex items-center justify-center tactical-map-bg">
-                <div class="map-continent"></div>
-                <!-- Map Container -->
-                <div class="relative w-full h-full max-w-[1024px] max-h-[768px]">
-                    <!-- Markers Container -->
-                    <div id="map-markers" class="absolute inset-0">
-                        <!-- JS injects markers here -->
-                    </div>
+            <div class="flex-1 relative overflow-hidden flex items-center justify-center bg-gray-950 p-4">
+                <div class="relative h-full aspect-square max-w-full shadow-2xl border border-gray-700 rounded-lg overflow-hidden">
+        
+                    <img src="https://media.discordapp.net/attachments/322706949173149698/1453972253632106517/jp_map_dec_26.png?ex=6950b62e&is=694f64ae&hm=fc85d2cd26ea0fa70bd05f958423ba83db54cc509c1a4d4738cbb4f40c587005&=&format=webp&quality=lossless&width=960&height=960" 
+                         class="absolute inset-0 w-full h-full object-cover opacity-60" 
+                         alt="World Map">
+
+                    <div id="map-markers" class="absolute inset-0 z-10">
+                        </div>
                 </div>
             </div>
             
@@ -507,24 +551,31 @@
         };
 
         const BUFF_ICONS = {
-            'warCry': { icon: 'fa-bullhorn', color: 'bg-red-600 border-red-400 shadow-[0_0_10px_rgba(220,38,38,0.5)]' },
-            'defensiveStance': { icon: 'fa-shield-halved', color: 'bg-green-600 border-green-400 shadow-[0_0_10px_rgba(22,163,74,0.5)]' },
-            'immortality': { icon: 'fa-infinity', color: 'bg-yellow-500 border-yellow-200 shadow-[0_0_10px_rgba(234,179,8,0.5)]' },
-            'doubleStrike': { icon: 'fa-bolt', color: 'bg-orange-600 border-orange-400 shadow-[0_0_10px_rgba(234,88,12,0.5)]' },
-            'galeBuff': { icon: 'fa-wind', color: 'bg-slate-500 border-slate-300' },
-            'blessing': { icon: 'fa-hands-praying', color: 'bg-yellow-600 border-yellow-300' },
-            'curse': { icon: 'fa-skull', color: 'bg-purple-800 border-purple-500' },
-            'confusion': { icon: 'fa-face-dizzy', color: 'bg-pink-800 border-pink-500' },
-            'webSlow': { icon: 'fa-spider', color: 'bg-gray-600 border-gray-400' },
-            'enemyWet': { icon: 'fa-droplet', color: 'bg-blue-600 border-blue-400' }
+            // Player Buffs
+            'warCry': { icon: 'fa-bullhorn', color: 'text-red-500', target: 'player' },
+            'defensiveStance': { icon: 'fa-shield-halved', color: 'text-green-500', target: 'player' },
+            'immortality': { icon: 'fa-infinity', color: 'text-yellow-400', target: 'player' },
+            'doubleStrike': { icon: 'fa-bolt', color: 'text-orange-500', target: 'player' },
+            'galeBuff': { icon: 'fa-wind', color: 'text-slate-300', target: 'player' },
+            'blessing': { icon: 'fa-hands-praying', color: 'text-yellow-200', target: 'player' },
+            'webSlow': { icon: 'fa-spider', color: 'text-gray-400', target: 'player' },
+            'frozen_heart': { icon: 'fa-snowflake', color: 'text-cyan-300', target: 'player' },
+            
+            // Enemy Debuffs
+            'curse': { icon: 'fa-skull', color: 'text-purple-500', target: 'enemy' },
+            'confusion': { icon: 'fa-face-dizzy', color: 'text-pink-500', target: 'enemy' },
+            'enemyWet': { icon: 'fa-droplet', color: 'text-blue-400', target: 'enemy' },
+            'entangle': { icon: 'fa-vine', color: 'text-green-600', target: 'enemy' },
+            'stun': { icon: 'fa-star-half-stroke', color: 'text-yellow-400', target: 'enemy' },
+            'ignite': { icon: 'fa-fire', color: 'text-orange-500', target: 'enemy' },
         };
 
         const ZONES = [
             {
                 id: 0,
-                name: "Rat Cellar",
-                desc: "Filthy but dim.",
-                x: 51, y: 60,
+                name: "Infested Cellar",
+                desc: "Ancient dust disturbed by skittering critters.",
+                x: 10, y: 85,
                 monsters: [
                     { name: "Giant Rat", level: 2, hp: 30, dmg: 4, xp: { strength: 12, dexterity: 8 }, icon: "game-icons:rat", color: "text-gray-400", element: 'physical' },
                     { name: "Slime", level: 3, hp: 55, dmg: 4, xp: { water: 14, endurance: 8, plant: 8 }, icon: "game-icons:slime", color: "text-lime-400", element: 'water' },
@@ -540,7 +591,7 @@
                 id: 1,
                 name: "Dark Forest",
                 desc: "Shadows lurk here.",
-                x: 25.5, y: 43,
+                x: 40, y: 65,
                 monsters: [
                     { name: "Dire Wolf", level: 5, hp: 90, dmg: 8, xp: { strength: 25, dexterity: 25 }, icon: "game-icons:wolf-head", color: "text-gray-500", element: 'physical' },
                     { name: "Vampire Bat", level: 7, hp: 70, dmg: 10, xp: { dexterity: 30, darkness: 30, air: 10 }, icon: "game-icons:swamp-bat", color: "text-purple-400", element: 'darkness' },
@@ -556,7 +607,7 @@
                 id: 2,
                 name: "Misty Marsh",
                 desc: "Thick fog and poisonous waters.",
-                x: 49, y: 78,
+                x: 60, y: 80,
                 monsters: [
                     { name: "Mud Crab", level: 10, hp: 180, dmg: 15, xp: { water: 50, endurance: 50 }, icon: "game-icons:crab", color: "text-orange-700", element: 'water' },
                     { name: "Giant Toad", level: 12, hp: 220, dmg: 18, xp: { water: 40, earth: 40, strength: 40 }, icon: "game-icons:frog", color: "text-green-700", element: 'earth' },
@@ -571,8 +622,8 @@
             {
                 id: 3,
                 name: "Molten Core",
-                desc: "Intense heat.",
-                x: 77, y: 49,
+                desc: "Where rock melts like wax.",
+                x: 75, y: 47,
                 monsters: [
                     { name: "Magma Cube", level: 16, hp: 350, dmg: 35, xp: { endurance: 80, fire: 80 }, icon: "game-icons:ice-cube", color: "text-orange-500", element: 'fire' },
                     { name: "Lava Golem", level: 20, hp: 550, dmg: 45, xp: { earth: 100, endurance: 50, fire: 50 }, icon: "game-icons:rock-golem", color: "text-red-600", element: 'earth' },
@@ -588,7 +639,7 @@
                 id: 4,
                 name: "Crystal Cavern",
                 desc: "Echoes of the earth.",
-                x: 70.5, y: 24,
+                x: 30, y: 48,
                 monsters: [
                     { name: "Rock Elemental", level: 22, hp: 1200, dmg: 70, xp: { earth: 110, endurance: 110 }, icon: "game-icons:stone-pile", color: "text-amber-700", element: 'earth' },
                     { name: "Conductor Spider", level: 24, hp: 900, dmg: 80, xp: { dexterity: 90, intelligence: 90, lightning: 60 }, icon: "game-icons:spider-alt", color: "text-cyan-300", element: 'lightning' },
@@ -604,7 +655,7 @@
                 id: 5,
                 name: "Sunken City",
                 desc: "Ruins beneath the waves.",
-                x: 22.5, y: 70,
+                x: 85, y: 85,
                 monsters: [
                     { name: "Merfolk Warrior", level: 28, hp: 3000, dmg: 120, xp: { water: 160, dexterity: 60, strength: 60 }, icon: "game-icons:mermaid", color: "text-teal-400", element: 'water' },
                     { name: "Living Coral", level: 30, hp: 3500, dmg: 100, xp: { plant: 160, intelligence: 70, endurance: 70 }, icon: "game-icons:coral", color: "text-pink-700", element: 'plant' },
@@ -620,7 +671,7 @@
                 id: 6,
                 name: "Frozen Cliffs",
                 desc: "Bitter cold and biting winds.",
-                x: 35, y: 15,
+                x: 54, y: 44,
                 monsters: [
                     { name: "Blizard Bird", level: 32, hp: 5000, dmg: 180, xp: { air: 110, ice: 110, dexterity: 100 }, icon: "game-icons:egyptian-bird", color: "text-blue-200", element: 'air' },
                     { name: "Ice Golem", level: 34, hp: 8000, dmg: 200, xp: { ice: 120, earth: 120, endurance: 100 }, icon: "game-icons:ice-golem", color: "text-cyan-100", element: 'ice' },
@@ -636,7 +687,7 @@
                 id: 7,
                 name: "Sky Summit",
                 desc: "Where the air is thin.",
-                x: 48.5, y: 17,
+                x: 12, y: 28,
                 monsters: [
                     { name: "Harpie Dancer", level: 36, hp: 8000, dmg: 250, xp: { air: 140, dexterity: 90 }, icon: "game-icons:harpy", color: "text-gray-200", element: 'air' },
                     { name: "Storm Griffin", level: 38, hp: 10000, dmg: 300, xp: { air: 180, holy: 100, strength: 100 }, icon: "game-icons:griffin-symbol", color: "text-yellow-100", element: 'air' },
@@ -652,7 +703,7 @@
                 id: 8,
                 name: "Sanctum of Light",
                 desc: "Blinding radiance.",
-                x: 87, y: 79,
+                x: 44, y: 12,
                 monsters: [
                     { name: "Guardian Statue", level: 44, hp: 20000, dmg: 450, xp: { earth: 200, endurance: 120, strength: 120 }, icon: "fa-chess-rook", color: "text-yellow-600", element: 'earth' },
                     { name: "Light Wisp", level: 42, hp: 15000, dmg: 500, xp: { holy: 200, intelligence: 110, air: 110 }, icon: "fa-sun", color: "text-yellow-200", element: 'holy' },
@@ -668,7 +719,7 @@
                 id: 9,
                 name: "Void Plane",
                 desc: "Reality bends here.",
-                x: 9.5, y: 17.5,
+                x: 77, y: 10,
                 monsters: [
                     { name: "Void Walker", level: 48, hp: 45000, dmg: 900, xp: { darkness: 240, intelligence: 240 }, icon: "game-icons:robe", color: "text-purple-300", element: 'darkness' },
                     { name: "Chaos Knight", level: 50, hp: 70000, dmg: 1200, xp: { strength: 175, endurance: 175, darkness: 150 }, icon: "game-icons:black-knight-helm", color: "text-gray-200", element: 'physical' },
@@ -684,7 +735,7 @@
 
         // --- ARTIFACT DATA ---
         const ARTIFACT_DATA = {
-            // Zone 0: Rat Cellar
+            // Zone 0: Infested Cellar
             "Giant Rat": { name: "Rat Tail", icon: "game-icons:armadillo-tail", desc: "A twitching tail." },
             "Slime": { name: "Sticky Glob", icon: "game-icons:transparent-slime", desc: "Forever gooey." },
             "Cellar Beetle": { name: "Hard Carapace", icon: "game-icons:beetle-shell", desc: "Surprisingly tough." },
@@ -700,8 +751,8 @@
 
             // Zone 2: Misty Marsh
             "Mud Crab": { name: "Crab Pincer", icon: "game-icons:crab-claw", desc: "Snip snip." },
-            "Giant Toad": { name: "Toad Tadpole", icon: "game-icons:tadpole", desc: "Slimy little offspring." },
-            "Swamp Witch": { name: "Hexed Totem", icon: "game-icons:voodoo-doll", desc: "Full of bad vibes." },
+            "Giant Toad": { name: "Toad Tadpole", icon: "game-icons:tadpole", desc: "Tiny swimmer waiting to hop." },
+            "Swamp Witch": { name: "Newt Familiar", icon: "game-icons:gecko", desc: "Small, sticky, mage aide." },
             "Poison Ivy": { name: "Toxic Leaf", icon: "game-icons:leaf-skeleton", desc: "Don't touch it." },
             "Hydra": { name: "Regenerating Scale", icon: "game-icons:shoulder-scales", desc: "Warm to the touch." },
 
@@ -910,8 +961,6 @@
             enemyMaxHp: 10,
             attackTimer: 10000, 
             enemyAttackTimer: 0,
-            isStunned: false, 
-            stunTimer: 0,
             isBoss: false, 
             currentGimmick: null,
             gimmickTimer: 0, 
@@ -1128,8 +1177,6 @@
             combat.enemyMaxHp = combat.enemy.hp;
             combat.enemyHp = combat.enemy.hp;
             combat.enemyAttackTimer = 0;
-            combat.isStunned = false;
-            combat.stunTimer = 0;
             combat.dpsTimer = 0; 
             activeEffects = [];
 
@@ -1384,7 +1431,7 @@
                      descNext = `Next: Deals ${dotNext}% Dmg`;
                 }
                 else if (skill.id === 'w6') { // Tsunami
-                    descCurrent = `Effect: Deals ${cur.val}% Dmg & Soaks enemy`;
+                    descCurrent = `Effect: Deals ${cur.val}% Dmg & Soaks (+Lightning/Earth/Ice Dmg)`;
                 }
                 else if (skill.id === 'f4') { // Ignite
                     descCurrent = `Effect: Burns for ${skill.base + state.attributes.fire.level + ((lvl-1)*3)} Dmg/s`;
@@ -1537,12 +1584,12 @@
             const blizzard = activeEffects.find(e => e.type === 'blizzard');
 
             // Enemy AI
-            if (combat.isStunned) {
-                combat.stunTimer -= delta;
-                if(combat.stunTimer <= 0) {
-                    combat.isStunned = false;
-                    document.getElementById('enemy-status').innerHTML = '';
-                }
+            const isStunned = combat.buffs.some(b => b.id === 'stun');
+
+            if (isStunned) {
+                // Do nothing, enemy is disabled.
+                // The visual is now handled by the circular debuff icon on the right.
+                document.getElementById('enemy-status').innerHTML = ''; 
             } else {
                 combat.enemyAttackTimer += delta;
                 const enemySpeed = combat.isBoss ? 2000 : 2500;
@@ -1578,12 +1625,19 @@
             let buffsChanged = false;
             combat.buffs = combat.buffs.filter(b => {
                 b.duration -= delta;
-                buffsChanged = true;
+
+                if (b.damagePerTick) {
+                    b.tickTimer = (b.tickTimer || 0) + delta;
+                    if (b.tickTimer >= 1000) {
+                        b.tickTimer -= 1000;
+                        applyDamageToEnemy(b.damagePerTick, false, "text-orange-500", 'fire');
+                    }
+                }
+
                 return b.duration > 0;
             });
     
-            if(buffsChanged) updateBuffIcons();
-            updateBuffBars();
+            renderBuffCircles();
 
             // Active Effects (DOTs)
             activeEffects = activeEffects.filter(e => {
@@ -1632,11 +1686,21 @@
             }
         }
 
-        // Updated Helper: Apply Stun
         function applyStun(duration) {
-            combat.isStunned = true;
-            combat.stunTimer = Math.max(combat.stunTimer, duration);
-            document.getElementById('enemy-status').innerHTML = '<i class="fa-solid fa-star-half-stroke text-yellow-400 animate-spin text-2xl"></i>';
+            const existing = combat.buffs.find(b => b.id === 'stun');
+            if (existing) {
+                if (duration > existing.duration) {
+                    existing.duration = duration;
+                    existing.maxDuration = duration;
+                }
+            } else {
+                combat.buffs.push({ 
+                    id: 'stun', 
+                    duration: duration, 
+                    maxDuration: duration 
+                });
+            }
+            spawnFloatingText("STUNNED!", 'enemy-sprite', 'text-yellow-400 font-bold');
         }
 
         function applyDamageToEnemy(amount, isCrit, colorClass, element = 'physical') {
@@ -1861,7 +1925,7 @@
                 
                 activeEffects = [];
                 combat.buffs = [];
-                updateBuffIcons();
+                renderBuffCircles();
                 
                 state.zoneKills = 0;
                 log("Zone progress lost. Retreating...", "text-orange-400");
@@ -2072,7 +2136,7 @@
                 } else {
                     combat.buffs.push({ id: id, duration: dur, maxDuration: dur });
                 }
-                updateBuffIcons();
+                renderBuffCircles();
             };
 
             switch(skillDef.effect) {
@@ -2147,9 +2211,16 @@
                     applySkillDmg(calculatedStats.damage * fbMult, "text-orange-400");
                     break;
                 case 'ignite':
-                    let burnAmt = base + state.attributes.fire.level + ((skillLevel-1) * (skillDef.scale.damage || 0));
-                    activeEffects.push({ type: 'burn', amount: burnAmt, timer: 5000, tickTimer: 0 });
-                    spawnFloatingText("BURN!", 'enemy-sprite', 'text-orange-500');
+                    let burnDmg = base + state.attributes.fire.level + ((skillLevel-1) * (skillDef.scale.damage || 0));
+                    combat.buffs.push({ 
+                        id: 'ignite', 
+                        duration: 5000, 
+                        maxDuration: 5000,
+                        tickTimer: 0,
+                        damagePerTick: burnDmg 
+                    });
+                    spawnFloatingText("IGNITE!", 'enemy-sprite', 'text-orange-500 font-bold');
+                    renderBuffCircles();
                     break;
                 case 'explosion': // Meteor
                     let mMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
@@ -2291,83 +2362,76 @@
             }
         }
 
-        function updateBuffBars() {
-            try {
-                const container = document.getElementById('buff-bars-container');
-                if (!container) return; // Stop if HTML is missing
-
-                // Get current buff IDs
-                const activeIds = combat.buffs.map(b => b.id);
-        
-                // 1. Remove expired bars
-                Array.from(container.children).forEach(child => {
-                    if (!activeIds.includes(child.dataset.buffId)) {
-                        child.remove();
-                    }
-                });
-
-                // 2. Create or Update bars
-                combat.buffs.forEach(buff => {
-                    let barEl = container.querySelector(`[data-buff-id="${buff.id}"]`);
+        function renderBuffCircles() {
+            const playerContainer = document.getElementById('player-buffs-area');
+            const enemyContainer = document.getElementById('enemy-debuffs-area');
             
-                    // Safety: Ensure maxDuration exists, prevent division by zero
-                    const max = buff.maxDuration || buff.duration || 1; 
-                    const current = buff.duration || 0;
-                    const pct = Math.max(0, Math.min(100, (current / max) * 100));
-            
-                    // Get Display Info
-                    const meta = BUFF_ICONS[buff.id] || { icon: 'fa-star', color: 'bg-gray-600' };
-                    // Safety: Handle missing name lookup
-                    const skillName = (SKILL_LOOKUP[buff.id] && SKILL_LOOKUP[buff.id].name) ? SKILL_LOOKUP[buff.id].name : buff.id;
+            if (!playerContainer || !enemyContainer) return;
 
-                    // Create DOM if missing
-                    if (!barEl) {
-                        barEl = document.createElement('div');
-                        barEl.dataset.buffId = buff.id;
-                        barEl.className = "relative w-full h-5 bg-gray-900 rounded overflow-hidden border border-gray-700 shadow-sm";
-                
-                        barEl.innerHTML = `
-                            <div class="bar-fill h-full transition-all duration-75 ease-linear ${meta.color.split(' ')[0]} opacity-80" style="width: 100%"></div>
-                            <div class="absolute inset-0 flex items-center justify-between px-2 text-[10px] text-white font-bold drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
-                                <span class="flex items-center gap-1"><i class="fa-solid ${meta.icon}"></i> ${skillName}</span>
-                                <span class="timer-text font-mono"></span>
+            const syncContainer = (container, buffs, isPlayerSide) => {
+                // 1. Mark all existing as 'stale'
+                Array.from(container.children).forEach(el => el.dataset.stale = "true");
+
+                buffs.forEach(buff => {
+                    let el = container.querySelector(`[data-buff-id="${buff.id}"]`);
+                    
+                    const meta = BUFF_ICONS[buff.id] || { icon: 'fa-star', color: 'text-gray-400' };
+                    // Determine Ring Color based on text color class (simplified map)
+                    let ringColor = '#9ca3af'; // default gray
+                    if(meta.color.includes('red')) ringColor = '#ef4444';
+                    else if(meta.color.includes('green')) ringColor = '#22c55e';
+                    else if(meta.color.includes('blue') || meta.color.includes('cyan')) ringColor = '#06b6d4';
+                    else if(meta.color.includes('yellow') || meta.color.includes('orange')) ringColor = '#eab308';
+                    else if(meta.color.includes('purple')) ringColor = '#a855f7';
+
+                    if (!el) {
+                        el = document.createElement('div');
+                        el.dataset.buffId = buff.id;
+                        el.className = "buff-circle";
+                        // Tooltip title
+                        const skillName = (SKILL_LOOKUP[buff.id] && SKILL_LOOKUP[buff.id].name) ? SKILL_LOOKUP[buff.id].name : buff.id;
+                        el.title = skillName;
+                        
+                        el.innerHTML = `
+                            <div class="buff-timer-ring"></div>
+                            <div class="buff-circle-inner">
+                                <i class="fa-solid ${meta.icon} ${meta.color} text-sm"></i>
                             </div>
                         `;
-                        container.appendChild(barEl);
+                        container.appendChild(el);
                     }
+                    
+                    el.dataset.stale = "false"; // It's active
 
-                    // Update Width
-                    const fill = barEl.querySelector('.bar-fill');
-                    if(fill) fill.style.width = `${pct}%`;
-
-                    // Update Text
-                    const text = barEl.querySelector('.timer-text');
-                    if(text) text.innerText = `${(current / 1000).toFixed(1)}s`;
+                    // Update Timer Graphic (Conic Gradient)
+                    const max = buff.maxDuration || buff.duration || 1;
+                    const current = buff.duration || 0;
+                    const pct = (current / max) * 100;
+                    
+                    const ring = el.querySelector('.buff-timer-ring');
+                    if(ring) {
+                        ring.style.background = `conic-gradient(${ringColor} ${pct}%, transparent ${pct}% 100%)`;
+                    }
                 });
-            } catch (err) {
-                console.error("Error in updateBuffBars:", err);
-                // We catch the error so the game loop doesn't stop!
-            }
-        }
 
-        function updateBuffIcons() {
-            const container = document.getElementById('buff-container');
-            if(!container) return;
-            container.innerHTML = ''; // Clear current icons
+                Array.from(container.children).forEach(el => {
+                    if (el.dataset.stale === "true") el.remove();
+                });
+            };
 
-            combat.buffs.forEach(buff => {
-                // Get icon data or use fallback
-                const meta = BUFF_ICONS[buff.id] || { icon: 'fa-bolt', color: 'bg-gray-600' };
-        
-                const el = document.createElement('div');
-                // Extract just the background color class (e.g., "bg-red-600")
-                const bgClass = meta.color.split(' ')[0]; 
-        
-                el.className = `w-5 h-5 rounded ${bgClass} flex items-center justify-center text-[10px] text-white shadow-md border border-white/20`;
-                el.innerHTML = `<i class="fa-solid ${meta.icon}"></i>`;
-        
-                container.appendChild(el);
+            // Split buffs into Player vs Enemy
+            const playerBuffs = combat.buffs.filter(b => {
+                const meta = BUFF_ICONS[b.id];
+                return !meta || meta.target === 'player'; // Default to player if unknown
             });
+
+            const enemyDebuffs = combat.buffs.filter(b => {
+                const meta = BUFF_ICONS[b.id];
+                return meta && meta.target === 'enemy';
+            });
+
+            syncContainer(playerContainer, playerBuffs, true);
+            syncContainer(enemyContainer, enemyDebuffs, false);
         }
 
         function getSkillCost(skill, currentLevel) {
@@ -2528,7 +2592,7 @@
             const zonesCleared = (state.maxUnlockedZone || 0) + ((state.ngPlus || 0) * 9);
             
             if(zonesCleared === 0) {
-                alert("You haven't cleared any zones yet! Defeat the boss of the Rat Cellar first.");
+                alert("You haven't cleared any zones yet! Defeat the boss of the Infested Cellar first.");
                 return;
             }
 
@@ -2551,7 +2615,7 @@
             combat.enemy = null;
             combat.buffs = [];
             activeEffects = [];
-            updateBuffIcons();
+            renderBuffCircles();
             
             saveGame();
             setTimeout(() => location.reload(), 1000);
@@ -2590,7 +2654,7 @@
             combat.enemy = null;
             combat.buffs = [];
             activeEffects = [];
-            updateBuffIcons();
+            renderBuffCircles();
             
             log(`ASCENSION COMPLETE! Welcome to Cycle ${state.ngPlus}.`, "text-purple-400 font-bold text-xl");
             
