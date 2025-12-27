@@ -245,7 +245,6 @@
 
         <!-- Middle Col: Combat -->
         <section class="flex-1 flex flex-col bg-gray-800 relative z-0">
-            <!-- Zone Selector -->
             <div class="p-3 bg-gray-900 border-b border-gray-700 flex justify-between items-center shadow-md shrink-0 z-20 relative">
                 <div class="flex items-center gap-4 w-full justify-center relative">
                     <div class="text-center">
@@ -268,13 +267,12 @@
                 </div>
             </div>
 
-            <!-- Battle Area -->
             <div class="flex-1 flex flex-col items-center pt-4 p-4 md:p-8 relative overflow-y-auto custom-scrollbar bg-gray-800/50" id="battle-area">
                 
                 <div class="absolute inset-0 opacity-5" style="background-image: radial-gradient(#4b5563 1px, transparent 1px); background-size: 20px 20px;"></div>
                 <div id="damage-container" class="absolute inset-0 pointer-events-none z-50"></div>
 
-                <div class="w-full flex justify-center items-stretch gap-2 relative z-10">
+                <div class="w-full flex justify-center items-stretch gap-2 relative z-10 shrink-0">
 
                     <div id="player-buffs-area" class="flex flex-col justify-end pb-24 items-end gap-3 w-12 shrink-0">
                         </div>
@@ -338,16 +336,17 @@
                             <div id="attack-timer-bar" class="h-full bg-yellow-500 w-full transition-none"></div>
                         </div>
                         
-                        <div class="h-10"></div>
-                    </div>
+                        </div>
 
                     <div id="enemy-debuffs-area" class="flex flex-col pt-10 items-start gap-3 w-12 shrink-0">
                         </div>
 
                 </div>
 
-            <div class="h-40 bg-gray-950 border-t border-gray-700 p-3 font-mono text-xs overflow-y-auto shrink-0 custom-scrollbar" id="combat-log">
-                <div class="text-green-500 border-b border-gray-800 pb-1 mb-1">System initialized. Optimization Loaded.</div>
+                <div class="h-48 bg-gray-950 border-t-4 border-gray-700 p-4 font-mono text-xs overflow-y-auto shrink-0 custom-scrollbar shadow-inner w-full max-w-2xl rounded-lg z-30 mt-2" id="combat-log">
+                    <div class="text-green-500 border-b border-gray-800 pb-1 mb-1">System initialized. Optimization Loaded.</div>
+                </div>
+
             </div>
         </section>
 
@@ -551,22 +550,23 @@
 
         const BUFF_ICONS = {
             // Player Buffs
-            'warCry': { icon: 'fa-bullhorn', color: 'text-red-500', target: 'player' },
+            'warCry': { icon: 'game-icons:hunting-horn', color: 'text-red-500', target: 'player' },
             'defensiveStance': { icon: 'fa-shield-halved', color: 'text-green-500', target: 'player' },
             'immortality': { icon: 'fa-infinity', color: 'text-yellow-400', target: 'player' },
             'doubleStrike': { icon: 'fa-bolt', color: 'text-orange-500', target: 'player' },
             'galeBuff': { icon: 'fa-wind', color: 'text-slate-300', target: 'player' },
             'blessing': { icon: 'fa-hands-praying', color: 'text-yellow-200', target: 'player' },
             'webSlow': { icon: 'fa-spider', color: 'text-gray-400', target: 'player' },
-            'frozen_heart': { icon: 'fa-snowflake', color: 'text-cyan-300', target: 'player' },
+            // Removed frozen_heart (it's a gimmick, not a buff)
             
             // Enemy Debuffs
             'curse': { icon: 'fa-skull', color: 'text-purple-500', target: 'enemy' },
             'confusion': { icon: 'fa-face-dizzy', color: 'text-pink-500', target: 'enemy' },
             'enemyWet': { icon: 'fa-droplet', color: 'text-blue-400', target: 'enemy' },
-            'entangle': { icon: 'fa-vine', color: 'text-green-600', target: 'enemy' },
+            'chilled': { icon: 'fa-snowflake', color: 'text-cyan-200', target: 'enemy' }, // NEW DISTINCT DEBUFF
+            'entangle': { icon: 'game-icons:vine-whip', color: 'text-green-600', target: 'enemy' }, // UPDATED ICON
             'stun': { icon: 'fa-star-half-stroke', color: 'text-yellow-400', target: 'enemy' },
-            'ignite': { icon: 'fa-fire', color: 'text-orange-500', target: 'enemy' },
+            'ignite': { icon: 'fa-fire', color: 'text-orange-500', target: 'enemy' }
         };
 
         const ZONES = [
@@ -1594,12 +1594,20 @@
                 document.getElementById('enemy-status').innerHTML = ''; 
             } else {
                 combat.enemyAttackTimer += delta;
-                const enemySpeed = combat.isBoss ? 2000 : 2500;
                 
-                if (combat.enemyAttackTimer >= enemySpeed) {
-                    let attacks = Math.floor(combat.enemyAttackTimer / enemySpeed);
+                let currentEnemySpeed = combat.isBoss ? 2000 : 2500;
+
+                if (combat.buffs.some(b => b.id === 'entangle')) {
+                    currentEnemySpeed *= 1.5; // 50% Slower
+                }
+                // Check for 'chilled' OR 'enemyWet'
+                if (combat.buffs.some(b => b.id === 'enemyWet') || combat.buffs.some(b => b.id === 'chilled')) {
+                    currentEnemySpeed *= 1.3; // 30% Slower
+                }
+                if (combat.enemyAttackTimer >= currentEnemySpeed) {
+                    let attacks = Math.floor(combat.enemyAttackTimer / currentEnemySpeed);
                     if(attacks > 5) attacks = 5; 
-                    combat.enemyAttackTimer %= enemySpeed; 
+                    combat.enemyAttackTimer %= currentEnemySpeed; 
                     for(let i=0; i<attacks; i++) {
                          if(combat.playerHp > 0) enemyAttack();
                     }
@@ -2267,7 +2275,7 @@
                     applySkillDmg(calculatedStats.damage * wgMult, "text-cyan-400");
                     break;
                 case 'chill':
-                    addBuff('enemyWet', base);
+                    addBuff('chilled', base);
                     spawnFloatingText("CHILLED", 'enemy-sprite', 'text-cyan-200');
                     break;
                 case 'tidalCrash': // Tsunami
@@ -2325,8 +2333,8 @@
                     applySkillDmg(calculatedStats.damage * pMult, "text-green-500");
                     break;
                 case 'entangle':
-                    addBuff('webSlow', base + ((skillLevel-1)*1000));
-                    spawnFloatingText("ROOTED!", 'player-hp-bar', 'text-green-600');
+                    addBuff('entangle', base + ((skillLevel-1)*1000));
+                    spawnFloatingText("ROOTED!", 'enemy-sprite', 'text-green-600');
                     break;
                 case 'solarBeam':
                     let sbMult = base + ((skillLevel-1) * (skillDef.scale.damageMult || 0));
@@ -2394,10 +2402,20 @@
                         const skillName = (SKILL_LOOKUP[buff.id] && SKILL_LOOKUP[buff.id].name) ? SKILL_LOOKUP[buff.id].name : buff.id;
                         el.title = skillName;
                         
+                        // --- ICON RENDERING LOGIC ---
+                        let iconHtml = '';
+                        // If it has a colon (e.g. "game-icons:sword"), use Iconify
+                        if (meta.icon.includes(':')) {
+                            iconHtml = `<iconify-icon icon="${meta.icon}" class="${meta.color} text-lg"></iconify-icon>`;
+                        } else {
+                            // Otherwise use Font Awesome
+                            iconHtml = `<i class="fa-solid ${meta.icon} ${meta.color} text-sm"></i>`;
+                        }
+
                         el.innerHTML = `
                             <div class="buff-timer-ring"></div>
                             <div class="buff-circle-inner">
-                                <i class="fa-solid ${meta.icon} ${meta.color} text-sm"></i>
+                                ${iconHtml}
                             </div>
                         `;
                         container.appendChild(el);
@@ -3554,4 +3572,3 @@
     </script>
 </body>
 </html>
-
